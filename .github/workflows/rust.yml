@@ -2,13 +2,16 @@ name: Rust
 run-name: Rust
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   build:
@@ -17,7 +20,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Run checks
-      run: cargo check --verbose
+    - name: Build
+      run: cargo build --release --verbose
     - name: Run tests
       run: cargo test --verbose
+    - uses: actions/upload-artifact@v4
+      with:
+        name: binary
+        path: target/release/fpkg
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.7.7
