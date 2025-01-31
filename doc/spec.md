@@ -131,7 +131,18 @@ Repositories are simply https servers with a predefined file structure as follow
 
 index.kdl is made of bunch of package nodes. In each node there is a name value, a version value, and a path value. E.g.
 
+```
 package name=python version="3.10.2" path="./python-3.10.2.fpkg"
+```
+
+The list of repositories is stored in `/etc/fpkg/repos` in the format of
+
+```
+https://pkg.repo/fpkg
+https://another.repo
+```
+
+The repository's priorities decrease down the file i.e. The first repository has more priority then the second, and the second has more priority then the third etc.
 
 # Dependency resolving
 
