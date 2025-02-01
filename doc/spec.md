@@ -28,11 +28,11 @@ There are a bunch of terms and ideas used in this document:
 
 Covers the basics of fpkg’s command line usage.
 
-## fpkg install/add [packages]
+## fpkg install/add [package(s)]
 
 Installs package(s) into the pool.
 
-## fpkg rm/uninstall [packages]
+## fpkg rm/uninstall [package(s)]
 
 Removes a package from the current environment. Note that this does not automatically call rebuild unless if you specify the **—rebuild** flag.
 
