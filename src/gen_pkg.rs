@@ -15,5 +15,7 @@ pub fn gen_pkg(dir: String) -> Result<(), String> {
     if !directory_exists(&dir) {
         return Err(format!("Directory {} does not exist!", &dir));
     }
+    // verify the environment configuration
+
     Ok(())
 }
