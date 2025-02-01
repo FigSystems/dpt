@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+kdl = "6.3.3"
 tar = "0.4.43"
 zstd = "0.13.2"
