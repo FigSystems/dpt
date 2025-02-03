@@ -1,5 +1,17 @@
-use kdl::{KdlDocument, KdlError};
+use kdl::{KdlDocument, KdlError, KdlValue};
 use std::path::Path;
+
+fn check_kdl_value_string(doc: KdlDocument, field: String) -> Result<(), String> {
+    let field_value: Vec<&KdlValue> = doc.iter_args(&field).collect();
+    if field_value.len() < 1 {
+        return Err(format!("{} is not specified", field));
+    }
+    if !field_value.get(1).unwrap().is_string() {
+        return Err(format!("{} is not a string", field));
+    }
+
+    Ok(())
+}
 
 pub fn verify_pkg_config(file: String) -> Result<(), String> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
@@ -7,10 +19,9 @@ pub fn verify_pkg_config(file: String) -> Result<(), String> {
         return Err(e.to_string());
     }
     let doc = doc.unwrap();
-    let name = doc.get("name");
-    if let None = name {
-        return Err(String::from("Name not found in package spec"));
-    }
+
+    check_kdl_value_string(doc, "name".to_owned())?;
+
     Ok(())
 }
 
