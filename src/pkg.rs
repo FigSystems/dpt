@@ -1,7 +1,7 @@
 use kdl::{KdlDocument, KdlError, KdlValue};
 use std::path::Path;
 
-fn check_kdl_value_string(doc: KdlDocument, field: String) -> Result<(), String> {
+fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<(), String> {
     let field_value: Vec<&KdlValue> = doc.iter_args(&field).collect();
     if field_value.len() < 1 {
         return Err(format!("{} is not specified", field));
@@ -20,7 +20,9 @@ pub fn verify_pkg_config(file: String) -> Result<(), String> {
     }
     let doc = doc.unwrap();
 
-    check_kdl_value_string(doc, "name".to_owned())?;
+    check_kdl_value_string(&doc, "name".to_string())?;
+    check_kdl_value_string(&doc, "version".to_string())?;
+    check_kdl_value_string(&doc, "developer".to_string())?;
 
     Ok(())
 }
