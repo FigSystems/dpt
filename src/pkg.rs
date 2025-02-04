@@ -24,6 +24,12 @@ pub fn verify_pkg_config(file: String) -> Result<(), String> {
     check_kdl_value_string(&doc, "version".to_string())?;
     check_kdl_value_string(&doc, "developer".to_string())?;
 
+    for node in doc.nodes().into_iter() {
+        if node.name().value() == "depends" {
+            // TODO
+        }
+    }
+
     Ok(())
 }
 
