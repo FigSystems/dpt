@@ -26,7 +26,12 @@ pub fn verify_pkg_config(file: String) -> Result<(), String> {
 
     for node in doc.nodes().into_iter() {
         if node.name().value() == "depends" {
-            // TODO
+            let name = node.get(1);
+            if let None = name {
+                return Err("Name not specified in dependency!".to_string());
+            }
+            let name = name.unwrap();
+            log::debug!("depends {}", name);
         }
     }
 

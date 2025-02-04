@@ -3,14 +3,7 @@ use std::{fs, path::Path};
 use crate::pkg;
 
 fn directory_exists(dir: &Path) -> bool {
-    if let Ok(result) = fs::exists(&dir) {
-        if result {
-            if Path::is_dir(Path::new(&dir)) {
-                return true;
-            }
-        }
-    }
-    false
+    dir.is_dir()
 }
 
 pub fn gen_pkg(dir: &Path, out: &Path) -> Result<(), String> {
@@ -18,8 +11,11 @@ pub fn gen_pkg(dir: &Path, out: &Path) -> Result<(), String> {
         return Err(format!("Directory {} does not exist!", &dir.display()));
     }
     let config_str = fs::read_to_string(dir.join(Path::new("fpkg/pkg.kdl")));
-    if let Err(error) = config_str {
-        return Err(error.to_string());
+    if let Err(_error) = config_str {
+        return Err(format!(
+            "Cannot find file {}/fpkg/pkg.kdl!",
+            &dir.to_string_lossy()
+        ));
     }
     let config_str = config_str.unwrap();
 
