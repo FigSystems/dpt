@@ -7,7 +7,7 @@ mod pkg;
 
 use std::path::Path;
 
-use log::{error, info};
+use log::error;
 
 fn main() {
     colog::init();

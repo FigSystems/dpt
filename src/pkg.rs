@@ -1,16 +1,33 @@
 use kdl::{KdlDocument, KdlError, KdlValue};
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct Dependency {
     name: String,
     version_mask: String,
 }
 
+impl PartialEq for Dependency {
+    fn eq(&self, other: &Dependency) -> bool {
+        self.name == other.name && self.version_mask == other.version_mask
+    }
+}
+
+#[derive(Debug)]
 pub struct PackageConfig {
     name: String,
     version: String,
     developer: String,
     depends: Vec<Dependency>,
+}
+
+impl PartialEq for PackageConfig {
+    fn eq(&self, other: &PackageConfig) -> bool {
+        self.name == other.name
+            && self.version == other.version
+            && self.developer == other.developer
+            && self.depends == other.depends
+    }
 }
 
 fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, String> {
@@ -84,4 +101,40 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), String> {
 /// Extracts the .fpkg into a directory
 pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_pkg_config_1() {
+        let s = r#"
+name "abcd"
+version "145.54.12"
+developer "GHJK"
+
+depends coreutils
+depends python {
+    version "8.9.112"
+}"#
+        .to_string();
+        let expected = PackageConfig {
+            name: "abcd".to_string(),
+            version: "145.54.12".to_string(),
+            developer: "GHJK".to_string(),
+            depends: vec![
+                Dependency {
+                    name: "coreutils".to_string(),
+                    version_mask: "*.*.*".to_string(),
+                },
+                Dependency {
+                    name: "python".to_string(),
+                    version_mask: "8.9.112".to_string(),
+                },
+            ],
+        };
+        let x = get_package_config(s).unwrap();
+        assert_eq!(x, expected);
+    }
 }
