@@ -36,13 +36,11 @@ fn main() {
 
     match &args.get(1).unwrap() as &str {
         "gen-pkg" => {
-            info!("gen-pkg");
             if argc < 3 {
                 error!("Not enough arguments!");
                 std::process::exit(exitcode::USAGE);
             }
             let path = std::path::PathBuf::from(&format!("{}", &args[2]));
-            info!("{}", &path.display());
             let err = gen_pkg::gen_pkg(&path, &path.clone().join(Path::new("fpkg/pkg.kdl")));
             if let Err(e) = err {
                 error!("{}", e);
