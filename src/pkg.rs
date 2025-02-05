@@ -104,6 +104,26 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
 
 /// Tars the directory and compresses it into a .fpkg
 pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), String> {
+    let f = std::fs::File::create(&out);
+    if let Err(e) = f {
+        return Err(format!("{}", e.to_string()));
+    }
+    let f = f.unwrap();
+
+    let zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL);
+    if let Err(e) = zstrm {
+        return Err(format!("{}", e.to_string()));
+    }
+    let mut zstrm = zstrm.unwrap().auto_finish();
+
+    let mut tar = tar::Builder::new(&mut zstrm);
+    if let Err(e) = tar.append_dir_all(".", &dir) {
+        return Err(e.to_string());
+    }
+
+    if let Err(e) = tar.finish() {
+        return Err(e.to_string());
+    }
     Ok(())
 }
 

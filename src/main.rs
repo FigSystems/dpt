@@ -5,9 +5,7 @@
 mod gen_pkg;
 mod pkg;
 
-use std::path::Path;
-
-use log::error;
+use log::{error, info};
 
 fn main() {
     colog::init();
@@ -41,7 +39,7 @@ fn main() {
                 std::process::exit(exitcode::USAGE);
             }
             let path = std::path::PathBuf::from(&format!("{}", &args[2]));
-            let err = gen_pkg::gen_pkg(&path, &path.clone().join(Path::new("fpkg/pkg.kdl")));
+            let err = gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
             if let Err(e) = err {
                 error!("{}", e);
                 std::process::exit(1);
@@ -53,6 +51,8 @@ fn main() {
             std::process::exit(exitcode::USAGE);
         }
     }
+
+    info!("Done!");
 }
 
 fn print_help() {
