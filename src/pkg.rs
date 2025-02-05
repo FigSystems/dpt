@@ -1,5 +1,5 @@
-use kdl::{KdlDocument, KdlError, KdlValue};
-use std::path::Path;
+use kdl::{KdlDocument, KdlError};
+use std::{fmt::Debug, path::Path};
 
 #[derive(Debug)]
 pub struct Dependency {
@@ -31,15 +31,15 @@ impl PartialEq for PackageConfig {
 }
 
 fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, String> {
-    let field_value: Vec<&KdlValue> = doc.iter_args(&field).collect();
-    if field_value.len() < 1 {
-        return Err(format!("{} is not specified", field));
+    let field_value = doc.get_arg(&field.as_str());
+    if let None = field_value {
+        return Err(format!("{} does not have an argument", field));
     }
-    if !field_value.get(0).unwrap().is_string() {
-        return Err(format!("{} is not a string", field));
+    let field_value = field_value.unwrap().as_string();
+    if let None = field_value {
+        return Err(format!("{}'s argument is not a string", field));
     }
-
-    Ok(field_value.get(0).unwrap().to_string())
+    Ok(field_value.unwrap().to_string())
 }
 
 pub fn verify_pkg_config(file: String) -> Result<(), String> {
@@ -52,7 +52,16 @@ pub fn verify_pkg_config(file: String) -> Result<(), String> {
 pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
     if let Err(e) = doc {
-        return Err(e.to_string());
+        let diagnostics = e
+            .diagnostics
+            .into_iter()
+            .map(|x| {
+                let a = x.to_string();
+                format!("{}\n", a)
+            })
+            .collect::<Vec<String>>()
+            .concat();
+        return Err(format!("Failed to parse KDL document: {}", diagnostics));
     }
     let doc = doc.unwrap();
 
@@ -109,16 +118,16 @@ mod tests {
 
     #[test]
     fn get_pkg_config_1() {
-        let s = r#"
+        let s = r###"
 name "abcd"
 version "145.54.12"
-developer "GHJK"
+developer GHJK
 
-depends coreutils
+depends "coreutils"
 depends python {
     version "8.9.112"
-}"#
-        .to_string();
+    }"###
+            .to_string();
         let expected = PackageConfig {
             name: "abcd".to_string(),
             version: "145.54.12".to_string(),
