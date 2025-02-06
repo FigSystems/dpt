@@ -5,6 +5,7 @@ mod config;
 mod gen_pkg;
 mod pkg;
 mod pool;
+mod repo;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
@@ -46,6 +47,20 @@ fn main() {
             if let Err(e) = err {
                 error!("{}", e);
                 std::process::exit(1);
+            }
+        }
+        "fetch" => {
+            if argc < 4 {
+                error!("Not enough arguments!");
+                std::process::exit(exitcode::USAGE);
+            }
+
+            match repo::fetch_file(&args[2], &args[3]) {
+                Err(e) => {
+                    error!("{}", e);
+                    std::process::exit(1);
+                }
+                Ok(()) => {}
             }
         }
         cmd => {
