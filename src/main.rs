@@ -1,8 +1,12 @@
 // Improve rust's default behavior
 #![allow(dead_code)]
 
+mod config;
 mod gen_pkg;
 mod pkg;
+mod pool;
+
+pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use log::{error, info};
 

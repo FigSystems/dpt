@@ -56,7 +56,7 @@ Covers the inner and implementation details of fpkg.
 
 ## The fpkg pool
 
-The fpkg pool are composed of many directories with names following the pattern package-name-1.2.3. The main pool is stored at /fpkg/pool by default, but the location of this pool can be changed by placing the directory name in a file at /etc/fpkg/pool.
+The fpkg pool are composed of many directories with names following the pattern package-name-1.2.3. The main pool is stored at /fpkg/pool by default, but the location of this pool can be changed by placing the directory name in a file at `/etc/fpkg/pool`.
 
 _Example fpkg pool_
 
@@ -77,7 +77,7 @@ _Example fpkg pool_
 
 ## Package environments
 
-For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The default environment directory is /fpkg/env but this can be changed by placing a directory name inside a file at the path /etc/fpkg/env. Each sub-directory under the environment directory will have a package with the same name, or rather, the environment has the same name as the package it represents.
+For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The default environment directory is /fpkg/env but this can be changed by placing a directory name inside a file at the path `/etc/fpkg/env`. Each sub-directory under the environment directory will have a package with the same name, or rather, the environment has the same name as the package it represents.
 
 # Packages
 
