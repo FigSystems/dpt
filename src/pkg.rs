@@ -129,6 +129,27 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), String> {
 
 /// Extracts the .fpkg into a directory
 pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<(), String> {
+    let f = {
+        let f = std::fs::File::open(pkg);
+        if let Err(e) = f {
+            return Err(e.to_string());
+        }
+        f.unwrap()
+    };
+
+    let zstrm = {
+        let zstrm = zstd::Decoder::new(f);
+        if let Err(e) = zstrm {
+            return Err(e.to_string());
+        }
+        zstrm.unwrap()
+    };
+
+    let mut archive = tar::Archive::new(zstrm);
+    if let Err(e) = archive.unpack(out) {
+        return Err(e.to_string());
+    }
+
     Ok(())
 }
 
