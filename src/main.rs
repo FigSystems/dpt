@@ -50,17 +50,23 @@ fn main() {
             }
         }
         "fetch" => {
-            if argc < 4 {
+            if argc < 3 {
                 error!("Not enough arguments!");
                 std::process::exit(exitcode::USAGE);
             }
 
-            match repo::fetch_file(&args[2], &args[3]) {
+            match repo::fetch_file(args[2].to_string()) {
                 Err(e) => {
                     error!("{}", e);
                     std::process::exit(1);
                 }
-                Ok(()) => {}
+                Ok(v) => {
+                    println!(
+                        "{}",
+                        std::str::from_utf8(&v[..])
+                            .unwrap_or("Failed to convert fetched bytes to utf-8")
+                    );
+                }
             }
         }
         cmd => {

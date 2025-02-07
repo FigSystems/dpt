@@ -1,10 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use reqwest::Client;
-use std::error::Error;
-use std::fs::{self, File};
-use std::io::Write;
+use reqwest::blocking::Client;
+use std::fs;
+use std::io::Read;
 use std::path::Path;
-use tokio;
 
 use crate::pkg::Dependency;
 use crate::CONFIG_LOCATION;
@@ -12,6 +10,7 @@ use crate::CONFIG_LOCATION;
 pub struct OnlinePackage {
     name: String,
     version: String,
+    url: String,
     depends: Vec<Dependency>,
 }
 
@@ -34,41 +33,50 @@ pub fn get_repositories() -> Result<Vec<String>, String> {
     Ok(repos)
 }
 
-/// Displays a progress bar
-pub async fn fetch_file_inner(url: &str, local_path: &str) -> Result<(), Box<dyn Error>> {
+pub fn fetch_file_inner(url: String) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let client = Client::new();
-    let mut res = client.get(url).send().await?.error_for_status()?;
 
-    let total_size = res.content_length().unwrap_or_default();
+    let response = client.get(url).send()?;
+
+    let total_size = match response.content_length() {
+        Some(x) => x,
+        None => {
+            0 // return Err("Server wouldn't tell us what the content length was!".into());
+        }
+    };
+
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})")?
+            .template("{bar:40} {percent}% {msg}")?
             .progress_chars("##-"),
     );
-    pb.set_message("Downloading...");
 
-    let mut file = File::create(local_path)?;
-    let mut downloaded: u64 = 0;
+    let mut buffer = Vec::new();
 
-    // let mut stream = res.chunk();
-    while let Some(chunk) = res.chunk().await? {
-        let chunk = chunk;
-        file.write_all(&chunk)?;
-        downloaded += chunk.len() as u64;
+    let mut reader = response; // .take(total_size);
+    let mut chunk = [0u8; 4096];
+    let mut downloaded = 0;
+
+    while let Ok(bytes_read) = reader.read(&mut chunk) {
+        if bytes_read == 0 {
+            break;
+        }
+
+        buffer.extend_from_slice(&chunk[..bytes_read]);
+
+        downloaded += bytes_read as u64;
         pb.set_position(downloaded);
     }
-    pb.finish_with_message("Downloaded!");
-    Ok(())
+
+    pb.finish_with_message("Finished download!");
+
+    Ok(buffer)
 }
 
-pub fn fetch_file(url: &str, local_path: &str) -> Result<(), String> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    match rt.block_on(async { fetch_file_inner(url, local_path).await }) {
-        Ok(()) => Ok(()),
-        Err(e) => Err(format!("Failed to fetch file {}: {}", url, e)),
+pub fn fetch_file(url: String) -> Result<Vec<u8>, String> {
+    match fetch_file_inner(url) {
+        Ok(x) => Ok(x),
+        Err(e) => Err(format!("Failed to fetch file: {}", e.to_string())),
     }
 }
