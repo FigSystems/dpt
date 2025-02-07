@@ -121,10 +121,6 @@ depends love
 depends joy
 depends community
 ...
-
-provides examp {
-	version "1.2.3"
-}
 ```
 
 Version ranges are specified in the format of
@@ -144,7 +140,11 @@ Repositories are simply http(s) servers with a predefined file structure as foll
 index.kdl is made of bunch of package nodes. In each node there is a name value, a version value, and a path value. E.g.
 
 ```
-package name=python version="3.10.2" path="/python-3.10.2.fpkg"
+package name=python version="3.10.2" path="/python-3.10.2.fpkg" {
+    depends ...
+    depends ...
+    ... // A copy of the package's depends section
+}
 ```
 
 The list of repositories is stored in `/etc/fpkg/repos` in the format of
