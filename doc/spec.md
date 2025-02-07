@@ -129,7 +129,7 @@ provides examp {
 
 ## Repository Format
 
-Repositories are simply https servers with a predefined file structure as follows:
+Repositories are simply http(s) servers with a predefined file structure as follows:
 
 - index.kdl: KDL file with a list of packages and package versions that are contained in this repository.
 
@@ -138,7 +138,7 @@ Repositories are simply https servers with a predefined file structure as follow
 index.kdl is made of bunch of package nodes. In each node there is a name value, a version value, and a path value. E.g.
 
 ```
-package name=python version="3.10.2" path="./python-3.10.2.fpkg"
+package name=python version="3.10.2" path="/python-3.10.2.fpkg"
 ```
 
 The list of repositories is stored in `/etc/fpkg/repos` in the format of
