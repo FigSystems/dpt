@@ -113,7 +113,7 @@ version "1.2.3"
 developer "ExampleSoft Inc."
 
 depends python {
-	version "3.12-5.*"
+	version "^3.12-5"
 }
 
 depends coreutils
@@ -126,6 +126,12 @@ provides examp {
 	version "1.2.3"
 }
 ```
+
+Version ranges are specified in the format of
+
+- A `^` e.g. `^2.3.4` means `>=2.3.4` and `<3.0.0`
+- A `~` e.g. `^1.2.3` means `>=1.2.3` and `<1.3.0`
+- No prefix requires the exact version specified
 
 ## Repository Format
 
