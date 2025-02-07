@@ -1,9 +1,38 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
+use std::path::Path;
 use tokio;
+
+use crate::pkg::Dependency;
+use crate::CONFIG_LOCATION;
+
+pub struct OnlinePackage {
+    name: String,
+    version: String,
+    depends: Vec<Dependency>,
+}
+
+/// Returns a list of repository's URLs
+pub fn get_repositories() -> Result<Vec<String>, String> {
+    let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");
+    let repo_file = match fs::read_to_string(repos_file_location) {
+        Ok(x) => x,
+        Err(_) => {
+            return Err("Failed to read repository list!".to_string());
+        }
+    };
+
+    let mut repos: Vec<String> = Vec::new();
+    for line in repo_file.lines() {
+        if !line.trim().is_empty() {
+            repos.push(line.to_string());
+        }
+    }
+    Ok(repos)
+}
 
 /// Displays a progress bar
 pub async fn fetch_file_inner(url: &str, local_path: &str) -> Result<(), Box<dyn Error>> {
