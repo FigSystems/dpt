@@ -9,8 +9,9 @@ exitcode = "1.1.2"
 indicatif = "0.17.11"
 kdl = "6.3.3"
 log = "0.4.25"
-openssl = { version = "0.10.70", features = ["vendored"] }
-reqwest = { version = "0.12.12", features = ["blocking"] }
+reqwest = { version = "0.12.12", features = [
+    "rustls-tls",
+], default-features = false }
 tar = "0.4.43"
 tokio = "1.43.0"
 zstd = "0.13.2"
