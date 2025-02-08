@@ -85,7 +85,7 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>>
                     let x = x.unwrap();
                     check_kdl_value_string(&x, "version".to_string())?
                 } else {
-                    "*.*.*".to_string()
+                    "".to_string()
                 }
             };
             depends.push(Dependency {
@@ -140,7 +140,7 @@ developer GHJK
 
 depends "coreutils"
 depends python {
-    version "8.9.112"
+    version "^8.9.112"
     }"###
             .to_string();
         let expected = PackageConfig {
@@ -150,11 +150,11 @@ depends python {
             depends: vec![
                 Dependency {
                     name: "coreutils".to_string(),
-                    version_mask: "*.*.*".to_string(),
+                    version_mask: "".to_string(),
                 },
                 Dependency {
                     name: "python".to_string(),
-                    version_mask: "8.9.112".to_string(),
+                    version_mask: "^8.9.112".to_string(),
                 },
             ],
         };
