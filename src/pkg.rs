@@ -1,5 +1,5 @@
 use kdl::{KdlDocument, KdlError};
-use std::{fmt::Debug, path::Path};
+use std::{error::Error, fmt::Debug, path::Path};
 
 #[derive(Debug)]
 pub struct Dependency {
@@ -30,26 +30,26 @@ impl PartialEq for PackageConfig {
     }
 }
 
-fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, String> {
+fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, Box<dyn Error>> {
     let field_value = doc.get_arg(&field.as_str());
     if let None = field_value {
-        return Err(format!("{} does not have an argument", field));
+        return Err(format!("{} does not have an argument", field).into());
     }
     let field_value = field_value.unwrap().as_string();
     if let None = field_value {
-        return Err(format!("{}'s argument is not a string", field));
+        return Err(format!("{}'s argument is not a string", field).into());
     }
     Ok(field_value.unwrap().to_string())
 }
 
-pub fn verify_pkg_config(file: String) -> Result<(), String> {
+pub fn verify_pkg_config(file: String) -> Result<(), Box<dyn Error>> {
     match get_package_config(file) {
         Err(x) => Err(x),
         Ok(_) => Ok(()),
     }
 }
 
-pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
+pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
     if let Err(e) = doc {
         let diagnostics = e
@@ -61,7 +61,7 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
             })
             .collect::<Vec<String>>()
             .concat();
-        return Err(format!("Failed to parse KDL document: {}", diagnostics));
+        return Err(format!("Failed to parse KDL document: {}", diagnostics).into());
     }
     let doc = doc.unwrap();
 
@@ -74,7 +74,7 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
         if node.name().value() == "depends" {
             let name = node.get(0);
             if let None = name {
-                return Err("Name not specified for dependency!".to_string());
+                return Err("Name not specified for dependency!".into());
             }
             let name = name.unwrap();
             log::debug!("depends {}", name);
@@ -103,52 +103,26 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, String> {
 }
 
 /// Tars the directory and compresses it into a .fpkg
-pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), String> {
-    let f = std::fs::File::create(&out);
-    if let Err(e) = f {
-        return Err(format!("{}", e.to_string()));
-    }
-    let f = f.unwrap();
+pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
+    let f = std::fs::File::create(&out)?;
 
-    let zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL);
-    if let Err(e) = zstrm {
-        return Err(format!("{}", e.to_string()));
-    }
-    let mut zstrm = zstrm.unwrap().auto_finish();
+    let mut zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
 
     let mut tar = tar::Builder::new(&mut zstrm);
-    if let Err(e) = tar.append_dir_all(".", &dir) {
-        return Err(e.to_string());
-    }
+    tar.append_dir_all(".", &dir)?;
 
-    if let Err(e) = tar.finish() {
-        return Err(e.to_string());
-    }
+    tar.finish()?;
     Ok(())
 }
 
 /// Extracts the .fpkg into a directory
-pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<(), String> {
-    let f = {
-        let f = std::fs::File::open(pkg);
-        if let Err(e) = f {
-            return Err(e.to_string());
-        }
-        f.unwrap()
-    };
+pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
+    let f = std::fs::File::open(pkg)?;
 
-    let zstrm = {
-        let zstrm = zstd::Decoder::new(f);
-        if let Err(e) = zstrm {
-            return Err(e.to_string());
-        }
-        zstrm.unwrap()
-    };
+    let zstrm = zstd::Decoder::new(f)?;
 
     let mut archive = tar::Archive::new(zstrm);
-    if let Err(e) = archive.unpack(out) {
-        return Err(e.to_string());
-    }
+    archive.unpack(out)?;
 
     Ok(())
 }

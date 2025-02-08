@@ -1,5 +1,7 @@
 use indicatif::{ProgressBar, ProgressStyle};
+use kdl::KdlDocument;
 use reqwest::blocking::Client;
+use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -15,12 +17,12 @@ pub struct OnlinePackage {
 }
 
 /// Returns a list of repository's URLs
-pub fn get_repositories() -> Result<Vec<String>, String> {
+pub fn get_repositories() -> Result<Vec<String>, Box<dyn Error>> {
     let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");
     let repo_file = match fs::read_to_string(repos_file_location) {
         Ok(x) => x,
         Err(_) => {
-            return Err("Failed to read repository list!".to_string());
+            return Err("Failed to read repository list!".into());
         }
     };
 
@@ -33,7 +35,7 @@ pub fn get_repositories() -> Result<Vec<String>, String> {
     Ok(repos)
 }
 
-pub fn fetch_file_inner(url: String) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn fetch_file(url: String) -> Result<Vec<u8>, Box<dyn Error>> {
     let client = Client::new();
 
     let response = client.get(url).send()?;
@@ -72,11 +74,4 @@ pub fn fetch_file_inner(url: String) -> Result<Vec<u8>, Box<dyn std::error::Erro
     pb.finish_with_message("Finished download!");
 
     Ok(buffer)
-}
-
-pub fn fetch_file(url: String) -> Result<Vec<u8>, String> {
-    match fetch_file_inner(url) {
-        Ok(x) => Ok(x),
-        Err(e) => Err(format!("Failed to fetch file: {}", e.to_string())),
-    }
 }
