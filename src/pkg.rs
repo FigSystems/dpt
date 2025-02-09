@@ -3,8 +3,8 @@ use std::{error::Error, fmt::Debug, path::Path};
 
 #[derive(Debug)]
 pub struct Dependency {
-    name: String,
-    version_mask: String,
+    pub name: String,
+    pub version_mask: String,
 }
 
 impl PartialEq for Dependency {
@@ -69,6 +69,16 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>>
     let version = check_kdl_value_string(&doc, "version".to_string())?;
     let developer = check_kdl_value_string(&doc, "developer".to_string())?;
 
+    let depends = parse_depends(&doc)?;
+    Ok(PackageConfig {
+        name,
+        version,
+        developer,
+        depends,
+    })
+}
+
+pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>, Box<dyn Error>> {
     let mut depends: Vec<Dependency> = Vec::new();
     for node in doc.nodes().into_iter() {
         if node.name().value() == "depends" {
@@ -94,12 +104,7 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>>
             });
         }
     }
-    Ok(PackageConfig {
-        name,
-        version,
-        developer,
-        depends,
-    })
+    Ok(depends)
 }
 
 /// Tars the directory and compresses it into a .fpkg
