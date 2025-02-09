@@ -135,3 +135,47 @@ pub fn parse_repository_index(
     }
     Ok(ret)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_repository_index_1() {
+        let index = r###"
+package name=test version="9.11.14" path="/test.fpkg"
+package name=example version="1.2.3" path="my-pkg.fpkg" {
+    depends example1
+    depends example2 {
+        version "^10.2.0"
+    }
+}
+            "###;
+        let x = parse_repository_index(index, "https://my.repo.here/fpkg").unwrap();
+        let expected: Vec<OnlinePackage> = vec![
+            OnlinePackage {
+                name: "test".to_string(),
+                version: "9.11.14".to_string(),
+                url: "https://my.repo.here/fpkg/test.fpkg".to_string(),
+                depends: Vec::<Dependency>::new(),
+            },
+            OnlinePackage {
+                name: "example".to_string(),
+                version: "1.2.3".to_string(),
+                url: "https://my.repo.here/fpkg/my-pkg.fpkg".to_string(),
+                depends: vec![
+                    Dependency {
+                        name: "example1".to_string(),
+                        version_mask: "".to_string(),
+                    },
+                    Dependency {
+                        name: "example2".to_string(),
+                        version_mask: "^10.2.0".to_string(),
+                    },
+                ],
+            },
+        ];
+
+        assert_eq!(x, expected);
+    }
+}
