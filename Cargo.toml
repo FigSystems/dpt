@@ -9,6 +9,7 @@ exitcode = "1.1.2"
 indicatif = "0.17.11"
 kdl = "6.3.3"
 log = "0.4.25"
+pubgrub = "0.2.1"
 reqwest = { version = "0.12.12", features = [
     "rustls-tls",
     "blocking",

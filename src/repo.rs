@@ -1,10 +1,14 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use kdl::{KdlDocument, KdlNode};
+use pubgrub::range::Range;
+use pubgrub::solver::OfflineDependencyProvider;
+use pubgrub::version::SemanticVersion;
 use reqwest::blocking::Client;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
 
 use crate::pkg::Dependency;
 use crate::CONFIG_LOCATION;
@@ -145,6 +149,42 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>, Box<dyn Error>
         let index = std::str::from_utf8(&index)?;
         let mut packages = parse_repository_index(index, &repo)?;
         ret.append(&mut packages);
+    }
+
+    Ok(ret)
+}
+
+pub fn get_dependency_provider_for_packages(
+    packages: Vec<OnlinePackage>,
+) -> Result<OfflineDependencyProvider<String, SemanticVersion>, Box<dyn Error>> {
+    let mut ret = OfflineDependencyProvider::<String, SemanticVersion>::new();
+
+    for pkg in packages {
+        let mut depends = Vec::<(String, Range<SemanticVersion>)>::new();
+        for dep in pkg.depends {
+            let version = {
+                if dep.version_mask.len() < 1 {
+                    Range::any()
+                } else if dep.version_mask.chars().next() == Some('^') {
+                    let v = SemanticVersion::from_str(&dep.version_mask[1..])?;
+                    Range::between(v, v.bump_major())
+                } else if dep.version_mask.chars().next() == Some('~') {
+                    let v = SemanticVersion::from_str(&dep.version_mask[1..])?;
+                    Range::between(v, v.bump_minor())
+                } else {
+                    let v = SemanticVersion::from_str(&dep.version_mask)?;
+                    Range::exact(v)
+                }
+            };
+
+            depends.push((dep.name, version));
+        }
+
+        ret.add_dependencies(
+            pkg.name,
+            SemanticVersion::from_str(pkg.version.as_str())?,
+            depends,
+        );
     }
 
     Ok(ret)

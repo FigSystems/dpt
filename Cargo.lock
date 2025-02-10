@@ -282,6 +282,7 @@ dependencies = [
  "indicatif",
  "kdl",
  "log",
+ "pubgrub",
  "reqwest",
  "tar",
  "zstd",
@@ -898,6 +899,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pubgrub"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdd14552ad5f5d743a323c10d576f26822a044355d6601f377d813ece46f38fd"
+dependencies = [
+ "rustc-hash 1.1.0",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -907,7 +918,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash",
+ "rustc-hash 2.1.0",
  "rustls",
  "socket2",
  "thiserror 2.0.11",
@@ -925,7 +936,7 @@ dependencies = [
  "getrandom",
  "rand",
  "ring",
- "rustc-hash",
+ "rustc-hash 2.1.0",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -946,7 +957,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1090,6 +1101,12 @@ name = "rustc-demangle"
 version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
