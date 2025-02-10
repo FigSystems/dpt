@@ -30,8 +30,8 @@ impl PartialEq for PackageConfig {
     }
 }
 
-fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, Box<dyn Error>> {
-    let field_value = doc.get_arg(&field.as_str());
+fn check_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String, Box<dyn Error>> {
+    let field_value = doc.get_arg(&field);
     if let None = field_value {
         return Err(format!("{} does not have an argument", field).into());
     }
@@ -42,14 +42,14 @@ fn check_kdl_value_string(doc: &KdlDocument, field: String) -> Result<String, Bo
     Ok(field_value.unwrap().to_string())
 }
 
-pub fn verify_pkg_config(file: String) -> Result<(), Box<dyn Error>> {
+pub fn verify_pkg_config(file: &str) -> Result<(), Box<dyn Error>> {
     match get_package_config(file) {
         Err(x) => Err(x),
         Ok(_) => Ok(()),
     }
 }
 
-pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>> {
+pub fn get_package_config(file: &str) -> Result<PackageConfig, Box<dyn Error>> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
     if let Err(e) = doc {
         let diagnostics = e
@@ -65,9 +65,9 @@ pub fn get_package_config(file: String) -> Result<PackageConfig, Box<dyn Error>>
     }
     let doc = doc.unwrap();
 
-    let name = check_kdl_value_string(&doc, "name".to_string())?;
-    let version = check_kdl_value_string(&doc, "version".to_string())?;
-    let developer = check_kdl_value_string(&doc, "developer".to_string())?;
+    let name = check_kdl_value_string(&doc, "name")?;
+    let version = check_kdl_value_string(&doc, "version")?;
+    let developer = check_kdl_value_string(&doc, "developer")?;
 
     let depends = parse_depends(&doc)?;
     Ok(PackageConfig {
@@ -93,7 +93,7 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>, Box<dyn Error
                 let x = node.children();
                 if !x.is_none() {
                     let x = x.unwrap();
-                    check_kdl_value_string(&x, "version".to_string())?
+                    check_kdl_value_string(&x, "version")?
                 } else {
                     "".to_string()
                 }
@@ -146,8 +146,7 @@ developer GHJK
 depends "coreutils"
 depends python {
     version "^8.9.112"
-    }"###
-            .to_string();
+    }"###;
         let expected = PackageConfig {
             name: "abcd".to_string(),
             version: "145.54.12".to_string(),

@@ -11,6 +11,7 @@ pub fn gen_pkg(dir: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
         return Err(format!("Directory {} does not exist!", &dir.display()).into());
     }
     let config_str = fs::read_to_string(dir.join(Path::new("fpkg/pkg.kdl")))?;
+    let config_str = config_str.as_str();
 
     pkg::verify_pkg_config(config_str)?;
     pkg::package_pkg(&dir, &out)?;

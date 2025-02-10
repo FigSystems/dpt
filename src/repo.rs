@@ -36,7 +36,7 @@ pub fn get_repositories() -> Result<Vec<String>, Box<dyn Error>> {
     Ok(repos)
 }
 
-pub fn fetch_file(url: String) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn fetch_file(url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let client = Client::new();
 
     let response = client.get(url).send()?;
@@ -51,7 +51,7 @@ pub fn fetch_file(url: String) -> Result<Vec<u8>, Box<dyn Error>> {
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{bar:40} {percent}% {msg}")?
+            .template("{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})")?
             .progress_chars("##-"),
     );
 
@@ -133,6 +133,20 @@ pub fn parse_repository_index(
             depends,
         });
     }
+    Ok(ret)
+}
+
+pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
+    let repos = get_repositories()?;
+
+    let mut ret: Vec<OnlinePackage> = Vec::new();
+    for repo in repos {
+        let index = fetch_file(&push_onto_url(repo.as_str(), "index.kdl"))?;
+        let index = std::str::from_utf8(&index)?;
+        let mut packages = parse_repository_index(index, &repo)?;
+        ret.append(&mut packages);
+    }
+
     Ok(ret)
 }
 

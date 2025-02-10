@@ -9,6 +9,8 @@ mod repo;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
+use std::process::exit;
+
 use log::{error, info};
 
 fn main() {
@@ -33,32 +35,32 @@ fn main() {
     if argc < 2 {
         error!("Not enough arguments!");
         print_help();
-        std::process::exit(exitcode::USAGE);
+        exit(exitcode::USAGE);
     }
 
     match &args.get(1).unwrap() as &str {
         "gen-pkg" => {
             if argc < 3 {
                 error!("Not enough arguments!");
-                std::process::exit(exitcode::USAGE);
+                exit(exitcode::USAGE);
             }
             let path = std::path::PathBuf::from(&format!("{}", &args[2]));
             let err = gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
             if let Err(e) = err {
                 error!("{}", e);
-                std::process::exit(1);
+                exit(1);
             }
         }
         "fetch" => {
             if argc < 3 {
                 error!("Not enough arguments!");
-                std::process::exit(exitcode::USAGE);
+                exit(exitcode::USAGE);
             }
 
-            match repo::fetch_file(args[2].to_string()) {
+            match repo::fetch_file(&args[2]) {
                 Err(e) => {
                     error!("{}", e);
-                    std::process::exit(1);
+                    exit(1);
                 }
                 Ok(v) => {
                     println!(
@@ -69,10 +71,21 @@ fn main() {
                 }
             }
         }
+        "list" => match repo::get_all_available_packages() {
+            Ok(x) => {
+                for pkg in x {
+                    info!("{:#?}", pkg);
+                }
+            }
+            Err(e) => {
+                error!("{}", e.to_string());
+                exit(exitcode::UNAVAILABLE)
+            }
+        },
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();
-            std::process::exit(exitcode::USAGE);
+            exit(exitcode::USAGE);
         }
     }
 
