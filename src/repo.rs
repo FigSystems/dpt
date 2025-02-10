@@ -1,6 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use kdl::{KdlDocument, KdlError, KdlNode};
+use pubgrub::error::PubGrubError;
 use pubgrub::range::Range;
+use pubgrub::report::{DefaultStringReporter, Reporter};
 use pubgrub::solver::OfflineDependencyProvider;
 use pubgrub::version::SemanticVersion;
 use reqwest::blocking::Client;
@@ -255,7 +257,16 @@ pub fn resolve_dependencies_for_package(
         &dependency_provider,
         package.name.clone(),
         SemanticVersion::from_str(package.version.as_str())?,
-    )?;
+    );
+
+    let resolved = match resolved {
+        Ok(solution) => solution,
+        Err(PubGrubError::NoSolution(mut derivation_tree)) => {
+            derivation_tree.collapse_no_versions();
+            return Err(format!("{}", DefaultStringReporter::report(&derivation_tree)).into());
+        }
+        Err(err) => return Err(format!("{:?}", err).into()),
+    };
 
     let mut ret = Vec::<OnlinePackage>::new();
 

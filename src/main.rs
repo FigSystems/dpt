@@ -11,7 +11,7 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use std::process::exit;
 
-use log::{error, info};
+use log::{debug, error, info};
 
 fn main() {
     colog::init();
@@ -82,6 +82,43 @@ fn main() {
                 exit(exitcode::UNAVAILABLE)
             }
         },
+        "install" => {
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+            let packages = match repo::get_all_available_packages() {
+                Ok(x) => x,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    exit(exitcode::UNAVAILABLE);
+                }
+            };
+
+            for pkg in &args[2..] {
+                let newest_version = match repo::newest_package_from_name(pkg, &packages) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        error!("Failed to find package {}: {}", pkg, e.to_string());
+                        exit(exitcode::UNAVAILABLE);
+                    }
+                };
+                let dependencies = repo::resolve_dependencies_for_package(
+                    &packages,
+                    pkg::Package {
+                        name: newest_version.name,
+                        version: newest_version.version,
+                    },
+                );
+                if let Err(e) = dependencies {
+                    error!("Failed to resolve dependencies for package {}: {}", pkg, e);
+                    exit(exitcode::UNAVAILABLE);
+                }
+                let dependencies = dependencies.unwrap();
+
+                debug!("Package {}:\n{:#?}", pkg, &dependencies);
+            }
+        }
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();
