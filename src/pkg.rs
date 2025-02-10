@@ -1,10 +1,16 @@
 use kdl::{KdlDocument, KdlError};
 use std::{error::Error, fmt::Debug, path::Path};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dependency {
     pub name: String,
     pub version_mask: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Package {
+    pub name: String,
+    pub version: String,
 }
 
 impl PartialEq for Dependency {

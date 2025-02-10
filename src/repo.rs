@@ -10,10 +10,10 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
-use crate::pkg::Dependency;
+use crate::pkg::{Dependency, Package};
 use crate::CONFIG_LOCATION;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct OnlinePackage {
     name: String,
     version: String,
@@ -154,34 +154,36 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>, Box<dyn Error>
     Ok(ret)
 }
 
+pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>, Box<dyn Error>> {
+    Ok(if vr.len() < 1 {
+        Range::any()
+    } else if vr.chars().next() == Some('^') {
+        let v = SemanticVersion::from_str(&vr[1..])?;
+        Range::between(v, v.bump_major())
+    } else if vr.chars().next() == Some('~') {
+        let v = SemanticVersion::from_str(&vr[1..])?;
+        Range::between(v, v.bump_minor())
+    } else {
+        let v = SemanticVersion::from_str(&vr)?;
+        Range::exact(v)
+    })
+}
+
 pub fn get_dependency_provider_for_packages(
-    packages: Vec<OnlinePackage>,
+    packages: &Vec<OnlinePackage>,
 ) -> Result<OfflineDependencyProvider<String, SemanticVersion>, Box<dyn Error>> {
     let mut ret = OfflineDependencyProvider::<String, SemanticVersion>::new();
 
     for pkg in packages {
         let mut depends = Vec::<(String, Range<SemanticVersion>)>::new();
-        for dep in pkg.depends {
-            let version = {
-                if dep.version_mask.len() < 1 {
-                    Range::any()
-                } else if dep.version_mask.chars().next() == Some('^') {
-                    let v = SemanticVersion::from_str(&dep.version_mask[1..])?;
-                    Range::between(v, v.bump_major())
-                } else if dep.version_mask.chars().next() == Some('~') {
-                    let v = SemanticVersion::from_str(&dep.version_mask[1..])?;
-                    Range::between(v, v.bump_minor())
-                } else {
-                    let v = SemanticVersion::from_str(&dep.version_mask)?;
-                    Range::exact(v)
-                }
-            };
+        for dep in &pkg.depends {
+            let version = parse_version_range(&dep.version_mask)?;
 
-            depends.push((dep.name, version));
+            depends.push((dep.name.clone(), version));
         }
 
         ret.add_dependencies(
-            pkg.name,
+            pkg.name.clone(),
             SemanticVersion::from_str(pkg.version.as_str())?,
             depends,
         );
@@ -190,8 +192,51 @@ pub fn get_dependency_provider_for_packages(
     Ok(ret)
 }
 
+/// Converts by looping through the package list to find a match. Short circuted
+fn package_to_onlinepackage(
+    package: &Package,
+    packages: &Vec<OnlinePackage>,
+) -> Result<OnlinePackage, Box<dyn Error>> {
+    for pkg in packages {
+        if pkg.name == package.name && pkg.version == package.version {
+            return Ok(pkg.clone());
+        }
+    }
+
+    Err("Package not found in array matching the keys specified".into())
+}
+
+pub fn resolve_dependencies_for_package(
+    packages: &Vec<OnlinePackage>,
+    package: Package,
+) -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
+    let dependency_provider = get_dependency_provider_for_packages(&packages)?;
+    package_to_onlinepackage(&package, &packages)?; // Verify that the package exits in the package vec
+
+    let resolved = pubgrub::solver::resolve(
+        &dependency_provider,
+        package.name.clone(),
+        SemanticVersion::from_str(package.version.as_str())?,
+    )?;
+
+    let mut ret = Vec::<OnlinePackage>::new();
+
+    // Locate actual online packages from the resulting package list
+    for (name, version) in resolved {
+        ret.push(package_to_onlinepackage(
+            &Package {
+                name,
+                version: version.to_string(),
+            },
+            &packages,
+        )?)
+    }
+    Ok(ret)
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -231,5 +276,50 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
         ];
 
         assert_eq!(x, expected);
+    }
+
+    #[test]
+    fn resolve_1() {
+        let packages = vec![
+            OnlinePackage {
+                name: "1".to_string(),
+                version: "1.2.3".to_string(),
+                url: "https://my.repo.pkg/fpkg/1.fpkg".to_string(),
+                depends: vec![],
+            },
+            OnlinePackage {
+                name: "2".to_string(),
+                version: "4.5.6".to_string(),
+                url: "https://my.repo.pkg/fpkg/2.fpkg".to_string(),
+                depends: vec![Dependency {
+                    name: "1".to_string(),
+                    version_mask: "^1.0.0".to_string(),
+                }],
+            },
+            OnlinePackage {
+                name: "goal".to_string(),
+                version: "7.8.9".to_string(),
+                url: "https://my.repo.pkg/fpkg/goal.fpkg".to_string(),
+                depends: vec![Dependency {
+                    name: "2".to_string(),
+                    version_mask: "~4.5.0".to_string(),
+                }],
+            },
+        ];
+
+        let resolved = resolve_dependencies_for_package(
+            &packages,
+            Package {
+                name: "goal".to_string(),
+                version: "7.8.9".to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(resolved.len(), 3);
+
+        for pkg in resolved {
+            assert!(packages.contains(&pkg.clone()));
+        }
     }
 }
