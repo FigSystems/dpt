@@ -1,5 +1,5 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use kdl::{KdlDocument, KdlNode};
+use kdl::{KdlDocument, KdlError, KdlNode};
 use pubgrub::range::Range;
 use pubgrub::solver::OfflineDependencyProvider;
 use pubgrub::version::SemanticVersion;
@@ -15,10 +15,10 @@ use crate::CONFIG_LOCATION;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OnlinePackage {
-    name: String,
-    version: String,
-    url: String,
-    depends: Vec<Dependency>,
+    pub name: String,
+    pub version: String,
+    pub url: String,
+    pub depends: Vec<Dependency>,
 }
 
 /// Returns a list of repository's URLs
@@ -111,7 +111,25 @@ pub fn parse_repository_index(
     index: &str,
     base_url: &str,
 ) -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
-    let doc: KdlDocument = index.parse()?;
+    let doc: Result<KdlDocument, KdlError> = index.parse();
+    if let Err(e) = doc {
+        let diagnostics = e
+            .diagnostics
+            .into_iter()
+            .map(|x| {
+                let a = x.to_string();
+                let b = x.help.unwrap_or("None".to_string());
+                format!("{} help: {}\n", a, b)
+            })
+            .collect::<Vec<String>>()
+            .concat();
+        return Err(format!(
+            "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
+            index, diagnostics
+        )
+        .into());
+    }
+    let doc = doc.unwrap();
 
     let mut ret: Vec<OnlinePackage> = Vec::new();
     for pkg in doc.nodes() {
@@ -203,7 +221,27 @@ fn package_to_onlinepackage(
         }
     }
 
-    Err("Package not found in array matching the keys specified".into())
+    Err("Package not found".into())
+}
+
+pub fn newest_package_from_name(
+    package: &str,
+    packages: &Vec<OnlinePackage>,
+) -> Result<OnlinePackage, Box<dyn Error>> {
+    let mut newest_version = SemanticVersion::zero();
+    let mut newest_package: Option<OnlinePackage> = None;
+    for pkg in packages {
+        if pkg.name == package {
+            if SemanticVersion::from_str(&pkg.version)? > newest_version {
+                newest_version = SemanticVersion::from_str(&pkg.version)?;
+                newest_package = Some(pkg.clone());
+            }
+        }
+    }
+    match newest_package {
+        Some(x) => Ok(x),
+        None => Err("Package not found".into()),
+    }
 }
 
 pub fn resolve_dependencies_for_package(

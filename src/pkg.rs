@@ -63,11 +63,16 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig, Box<dyn Error>> {
             .into_iter()
             .map(|x| {
                 let a = x.to_string();
-                format!("{}\n", a)
+                let b = x.help.unwrap_or("None".to_string());
+                format!("{} help: {}\n", a, b)
             })
             .collect::<Vec<String>>()
             .concat();
-        return Err(format!("Failed to parse KDL document: {}", diagnostics).into());
+        return Err(format!(
+            "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
+            file, diagnostics
+        )
+        .into());
     }
     let doc = doc.unwrap();
 
