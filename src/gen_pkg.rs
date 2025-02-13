@@ -1,4 +1,5 @@
-use std::{error::Error, fs, path::Path};
+use anyhow::{bail, Result};
+use std::{fs, path::Path};
 
 use crate::pkg;
 
@@ -6,9 +7,9 @@ fn directory_exists(dir: &Path) -> bool {
     dir.is_dir()
 }
 
-pub fn gen_pkg(dir: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
+pub fn gen_pkg(dir: &Path, out: &Path) -> Result<()> {
     if !directory_exists(&dir) {
-        return Err(format!("Directory {} does not exist!", &dir.display()).into());
+        bail!("Directory {} does not exist!", &dir.display());
     }
     let config_str = fs::read_to_string(dir.join(Path::new("fpkg/pkg.kdl")))?;
     let config_str = config_str.as_str();

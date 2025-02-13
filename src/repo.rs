@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use kdl::{KdlDocument, KdlError, KdlNode};
 use pubgrub::error::PubGrubError;
@@ -6,13 +7,13 @@ use pubgrub::report::{DefaultStringReporter, Reporter};
 use pubgrub::solver::OfflineDependencyProvider;
 use pubgrub::version::SemanticVersion;
 use reqwest::blocking::Client;
-use std::error::Error;
-use std::fs;
+use std::fs::{self, DirBuilder};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use crate::pkg::{Dependency, Package};
+use crate::pkg::{self, Dependency, Package};
+use crate::pool::get_pool_location;
 use crate::CONFIG_LOCATION;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,12 +25,12 @@ pub struct OnlinePackage {
 }
 
 /// Returns a list of repository's URLs
-pub fn get_repositories() -> Result<Vec<String>, Box<dyn Error>> {
+pub fn get_repositories() -> Result<Vec<String>> {
     let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");
     let repo_file = match fs::read_to_string(repos_file_location) {
         Ok(x) => x,
         Err(_) => {
-            return Err("Failed to read repository list!".into());
+            bail!("Failed to read repository list!");
         }
     };
 
@@ -42,7 +43,7 @@ pub fn get_repositories() -> Result<Vec<String>, Box<dyn Error>> {
     Ok(repos)
 }
 
-pub fn fetch_file(url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     let client = Client::new();
 
     let response = client.get(url).send()?;
@@ -83,20 +84,19 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(buffer)
 }
 
-pub fn get_kdl_string_prop(prop_name: &str, node: &KdlNode) -> Result<String, Box<dyn Error>> {
+pub fn get_kdl_string_prop(prop_name: &str, node: &KdlNode) -> Result<String> {
     let name = match node.get(prop_name) {
         Some(x) => x,
         None => {
-            return Err(format!(
+            bail!(
                 "Package specification does not have a {} property!",
                 prop_name
-            )
-            .into())
+            );
         }
     };
     let name = match name.as_string() {
         Some(x) => x.to_string(),
-        None => return Err(format!("Property {} is not a string!", prop_name).into()),
+        None => bail!("Property {} is not a string!", prop_name),
     };
     Ok(name)
 }
@@ -109,10 +109,7 @@ pub fn push_onto_url(base: &str, ext: &str) -> String {
     }
 }
 
-pub fn parse_repository_index(
-    index: &str,
-    base_url: &str,
-) -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
+pub fn parse_repository_index(index: &str, base_url: &str) -> Result<Vec<OnlinePackage>> {
     let doc: Result<KdlDocument, KdlError> = index.parse();
     if let Err(e) = doc {
         let diagnostics = e
@@ -125,11 +122,11 @@ pub fn parse_repository_index(
             })
             .collect::<Vec<String>>()
             .concat();
-        return Err(format!(
+        bail!(
             "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
-            index, diagnostics
-        )
-        .into());
+            index,
+            diagnostics
+        );
     }
     let doc = doc.unwrap();
 
@@ -160,7 +157,7 @@ pub fn parse_repository_index(
     Ok(ret)
 }
 
-pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
+pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
     let repos = get_repositories()?;
 
     let mut ret: Vec<OnlinePackage> = Vec::new();
@@ -174,7 +171,7 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>, Box<dyn Error>
     Ok(ret)
 }
 
-pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>, Box<dyn Error>> {
+pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
     Ok(if vr.len() < 1 {
         Range::any()
     } else if vr.chars().next() == Some('^') {
@@ -191,7 +188,7 @@ pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>, Box<dyn E
 
 pub fn get_dependency_provider_for_packages(
     packages: &Vec<OnlinePackage>,
-) -> Result<OfflineDependencyProvider<String, SemanticVersion>, Box<dyn Error>> {
+) -> Result<OfflineDependencyProvider<String, SemanticVersion>> {
     let mut ret = OfflineDependencyProvider::<String, SemanticVersion>::new();
 
     for pkg in packages {
@@ -216,20 +213,20 @@ pub fn get_dependency_provider_for_packages(
 fn package_to_onlinepackage(
     package: &Package,
     packages: &Vec<OnlinePackage>,
-) -> Result<OnlinePackage, Box<dyn Error>> {
+) -> Result<OnlinePackage> {
     for pkg in packages {
         if pkg.name == package.name && pkg.version == package.version {
             return Ok(pkg.clone());
         }
     }
 
-    Err("Package not found".into())
+    bail!("Package not found")
 }
 
 pub fn newest_package_from_name(
     package: &str,
     packages: &Vec<OnlinePackage>,
-) -> Result<OnlinePackage, Box<dyn Error>> {
+) -> Result<OnlinePackage> {
     let mut newest_version = SemanticVersion::zero();
     let mut newest_package: Option<OnlinePackage> = None;
     for pkg in packages {
@@ -242,14 +239,14 @@ pub fn newest_package_from_name(
     }
     match newest_package {
         Some(x) => Ok(x),
-        None => Err("Package not found".into()),
+        None => bail!("Package not found"),
     }
 }
 
 pub fn resolve_dependencies_for_package(
     packages: &Vec<OnlinePackage>,
     package: Package,
-) -> Result<Vec<OnlinePackage>, Box<dyn Error>> {
+) -> Result<Vec<OnlinePackage>> {
     let dependency_provider = get_dependency_provider_for_packages(&packages)?;
     package_to_onlinepackage(&package, &packages)?; // Verify that the package exits in the package vec
 
@@ -263,9 +260,9 @@ pub fn resolve_dependencies_for_package(
         Ok(solution) => solution,
         Err(PubGrubError::NoSolution(mut derivation_tree)) => {
             derivation_tree.collapse_no_versions();
-            return Err(format!("{}", DefaultStringReporter::report(&derivation_tree)).into());
+            bail!("{}", DefaultStringReporter::report(&derivation_tree));
         }
-        Err(err) => return Err(format!("{:?}", err).into()),
+        Err(err) => bail!("{:?}", err),
     };
 
     let mut ret = Vec::<OnlinePackage>::new();
@@ -281,6 +278,25 @@ pub fn resolve_dependencies_for_package(
         )?)
     }
     Ok(ret)
+}
+
+pub fn install_pkg(pkg: &OnlinePackage) -> Result<PathBuf> {
+    let pool = get_pool_location();
+    if !pool.is_dir()
+    /* i.e. exists  */
+    {
+        DirBuilder::new().recursive(true).create(&pool)?;
+    }
+
+    let file = fetch_file(&pkg.url)?;
+
+    let mut archive = pkg::decompress_pkg_read(&file[..])?; // Moves file
+
+    let out_path: PathBuf = pool.join(&pkg.name);
+
+    archive.unpack(&out_path)?;
+
+    Ok(out_path)
 }
 
 #[cfg(test)]

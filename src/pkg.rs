@@ -1,5 +1,7 @@
+use anyhow::{bail, Result};
 use kdl::{KdlDocument, KdlError};
-use std::{error::Error, fmt::Debug, path::Path};
+use std::{io::BufRead, path::Path};
+use tar::Archive;
 
 #[derive(Debug, Clone)]
 pub struct Dependency {
@@ -36,26 +38,26 @@ impl PartialEq for PackageConfig {
     }
 }
 
-fn check_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String, Box<dyn Error>> {
+fn check_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String> {
     let field_value = doc.get_arg(&field);
     if let None = field_value {
-        return Err(format!("{} does not have an argument", field).into());
+        bail!("{} does not have an argument", field);
     }
     let field_value = field_value.unwrap().as_string();
     if let None = field_value {
-        return Err(format!("{}'s argument is not a string", field).into());
+        bail!("{}'s argument is not a string", field);
     }
     Ok(field_value.unwrap().to_string())
 }
 
-pub fn verify_pkg_config(file: &str) -> Result<(), Box<dyn Error>> {
+pub fn verify_pkg_config(file: &str) -> Result<()> {
     match get_package_config(file) {
         Err(x) => Err(x),
         Ok(_) => Ok(()),
     }
 }
 
-pub fn get_package_config(file: &str) -> Result<PackageConfig, Box<dyn Error>> {
+pub fn get_package_config(file: &str) -> Result<PackageConfig> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
     if let Err(e) = doc {
         let diagnostics = e
@@ -68,11 +70,11 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig, Box<dyn Error>> {
             })
             .collect::<Vec<String>>()
             .concat();
-        return Err(format!(
+        bail!(
             "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
-            file, diagnostics
-        )
-        .into());
+            file,
+            diagnostics
+        );
     }
     let doc = doc.unwrap();
 
@@ -89,13 +91,13 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig, Box<dyn Error>> {
     })
 }
 
-pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>, Box<dyn Error>> {
+pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
     let mut depends: Vec<Dependency> = Vec::new();
     for node in doc.nodes().into_iter() {
         if node.name().value() == "depends" {
             let name = node.get(0);
             if let None = name {
-                return Err("Name not specified for dependency!".into());
+                bail!("Name not specified for dependency!");
             }
             let name = name.unwrap();
             log::debug!("depends {}", name);
@@ -119,7 +121,7 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>, Box<dyn Error
 }
 
 /// Tars the directory and compresses it into a .fpkg
-pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
+pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
     let f = std::fs::File::create(&out)?;
 
     let mut zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
@@ -131,13 +133,23 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub fn decompress_pkg_read<'a>(
+    pkg: impl std::io::Read,
+) -> Result<Archive<zstd::Decoder<'a, impl BufRead>>> {
+    let zstrm = zstd::Decoder::new(pkg)?;
+
+    let archive = tar::Archive::new(zstrm);
+    Ok(archive)
+}
+
 /// Extracts the .fpkg into a directory
-pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<(), Box<dyn Error>> {
+pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<()> {
     let f = std::fs::File::open(pkg)?;
 
-    let zstrm = zstd::Decoder::new(f)?;
+    // let zstrm = zstd::Decoder::new(f)?;
 
-    let mut archive = tar::Archive::new(zstrm);
+    // let mut archive = tar::Archive::new(zstrm);
+    let mut archive = decompress_pkg_read(f)?;
     archive.unpack(out)?;
 
     Ok(())

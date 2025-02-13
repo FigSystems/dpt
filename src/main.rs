@@ -11,22 +11,29 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use std::process::exit;
 
+use anyhow::{Context, Result};
 use log::{debug, error, info};
+use users;
 
-fn main() {
+fn main() -> Result<()> {
     colog::init();
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
+
+    if users::get_current_uid() != 0 {
+        error!("You need to be root to run this!");
+        exit(exitcode::USAGE);
+    }
 
     for arg in &args {
         match arg.as_str() {
             "--help" | "-h" => {
                 print_help();
-                return;
+                return Ok(());
             }
             "--version" | "-v" => {
                 println!("{}", env!("CARGO_PKG_VERSION"));
-                return;
+                return Ok(());
             }
             _ => {} // It will just be handeled as a positional argument
         }
@@ -116,6 +123,10 @@ fn main() {
                 }
                 let dependencies = dependencies.unwrap();
 
+                for depencency in &dependencies {
+                    repo::install_pkg(&depencency).context("Failed to install package");
+                }
+
                 debug!("Package {}:\n{:#?}", pkg, &dependencies);
             }
         }
@@ -127,6 +138,7 @@ fn main() {
     }
 
     info!("Done!");
+    Ok(())
 }
 
 fn print_help() {
