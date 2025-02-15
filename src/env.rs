@@ -13,6 +13,7 @@ use crate::{
     repo::{package_to_onlinepackage, resolve_dependencies_for_package, OnlinePackage},
 };
 
+/// Get the location of the environment directory
 pub fn get_env_location() -> PathBuf {
     match crate::config::get_config_option(&"env".to_string()) {
         Some(x) => PathBuf::from(x),
@@ -20,12 +21,14 @@ pub fn get_env_location() -> PathBuf {
     }
 }
 
+/// Convert a path in the pool to it's equivalent path in the environment directory
 pub fn pool_to_env_location(pool_path: &Path) -> Result<PathBuf> {
     let out_path = pool_path.strip_prefix(get_pool_location())?;
     let out_path = get_env_location().join(out_path);
     Ok(out_path)
 }
 
+/// Generates the environment for a package, version solving to find dependencies.
 pub fn generate_environment_for_package(
     pkg: &Package,
     pkgs: &Vec<OnlinePackage>,

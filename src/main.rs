@@ -142,7 +142,6 @@ fn main() -> Result<()> {
                 install_pkg_and_dependencies(&newest_version, &pkgs, &mut done_list)?;
 
                 let pkgs = get_installed_packages()?;
-                info!("{:?}", pkgs);
 
                 for done in done_list {
                     generate_environment_for_package(

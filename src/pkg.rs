@@ -40,7 +40,8 @@ impl PartialEq for PackageConfig {
     }
 }
 
-fn check_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String> {
+/// Reads a kdl value from a kdl document, bailing if it is not a string or doesn't exist.
+fn get_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String> {
     let field_value = doc.get_arg(&field);
     if let None = field_value {
         bail!("{} does not have an argument", field);
@@ -52,6 +53,7 @@ fn check_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String> {
     Ok(field_value.unwrap().to_string())
 }
 
+/// Returns Ok if the package config is valid, and Err if it is not.
 pub fn verify_pkg_config(file: &str) -> Result<()> {
     match get_package_config(file) {
         Err(x) => Err(x),
@@ -59,12 +61,13 @@ pub fn verify_pkg_config(file: &str) -> Result<()> {
     }
 }
 
+/// Parses the package configuration and bails if not valid.
 pub fn get_package_config(file: &str) -> Result<PackageConfig> {
     let doc = parse_kdl(file)?;
 
-    let name = check_kdl_value_string(&doc, "name")?;
-    let version = check_kdl_value_string(&doc, "version")?;
-    let developer = check_kdl_value_string(&doc, "developer")?;
+    let name = get_kdl_value_string(&doc, "name")?;
+    let version = get_kdl_value_string(&doc, "version")?;
+    let developer = get_kdl_value_string(&doc, "developer")?;
 
     let depends = parse_depends(&doc)?;
     Ok(PackageConfig {
@@ -75,6 +78,7 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig> {
     })
 }
 
+/// Parse a kdl document, bailing if invalid
 pub fn parse_kdl(file: &str) -> Result<KdlDocument> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
     if let Err(e) = doc {
@@ -101,6 +105,7 @@ pub fn parse_kdl(file: &str) -> Result<KdlDocument> {
     }
 }
 
+/// Parse the dependencies from a package configuration kdl document
 pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
     let mut depends: Vec<Dependency> = Vec::new();
     for node in doc.nodes().into_iter() {
@@ -116,7 +121,7 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
                 let x = node.children();
                 if !x.is_none() {
                     let x = x.unwrap();
-                    check_kdl_value_string(&x, "version")?
+                    get_kdl_value_string(&x, "version")?
                 } else {
                     "".to_string()
                 }
@@ -130,6 +135,7 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
     Ok(depends)
 }
 
+/// Downgrade an OnlinePackage to Package
 pub fn onlinepackage_to_package(pkg: &OnlinePackage) -> Package {
     Package {
         name: pkg.name.clone(),
@@ -137,6 +143,7 @@ pub fn onlinepackage_to_package(pkg: &OnlinePackage) -> Package {
     }
 }
 
+/// Parses the name and version from a string.
 pub fn string_to_package(s: &str) -> Result<Package> {
     let version = s
         .split("-")
@@ -166,6 +173,7 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Decompresses a package from something implementing std::io::Read
 pub fn decompress_pkg_read<'a>(
     pkg: impl std::io::Read,
 ) -> Result<Archive<zstd::Decoder<'a, impl BufRead>>> {

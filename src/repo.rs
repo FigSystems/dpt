@@ -43,6 +43,7 @@ pub fn get_repositories() -> Result<Vec<String>> {
     Ok(repos)
 }
 
+/// Reads a file from online into a vector of bytes
 pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     let client = Client::new();
 
@@ -84,6 +85,7 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     Ok(buffer)
 }
 
+/// Finds a string property that is a subnode of `node`
 pub fn get_kdl_string_prop(prop_name: &str, node: &KdlNode) -> Result<String> {
     let name = match node.get(prop_name) {
         Some(x) => x,
@@ -101,6 +103,7 @@ pub fn get_kdl_string_prop(prop_name: &str, node: &KdlNode) -> Result<String> {
     Ok(name)
 }
 
+/// Adds a component onto the end of a URL
 pub fn push_onto_url(base: &str, ext: &str) -> String {
     if base.chars().last() == Some('/') || ext.chars().next() == Some('/') {
         base.to_owned() + ext
@@ -109,6 +112,7 @@ pub fn push_onto_url(base: &str, ext: &str) -> String {
     }
 }
 
+/// Parses a repositories index file into an array of OnlinePackages
 pub fn parse_repository_index(index: &str, base_url: &str) -> Result<Vec<OnlinePackage>> {
     let doc: Result<KdlDocument, KdlError> = index.parse();
     if let Err(e) = doc {
@@ -157,6 +161,7 @@ pub fn parse_repository_index(index: &str, base_url: &str) -> Result<Vec<OnlineP
     Ok(ret)
 }
 
+/// Get all packages that are available on all repositories
 pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
     let repos = get_repositories()?;
 
@@ -171,6 +176,7 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
     Ok(ret)
 }
 
+/// Parse a version range from a string
 pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
     Ok(if vr.len() < 1 {
         Range::any()
@@ -186,6 +192,7 @@ pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
     })
 }
 
+/// Get the dependency provider structure for the vector of packages passed in.
 pub fn get_dependency_provider_for_packages(
     packages: &Vec<OnlinePackage>,
 ) -> Result<OfflineDependencyProvider<String, SemanticVersion>> {
@@ -223,6 +230,7 @@ pub fn package_to_onlinepackage(
     bail!("Package {:?} not found", package)
 }
 
+/// Finds the newest package matching the name in the array of packages
 pub fn newest_package_from_name(
     package: &str,
     packages: &Vec<OnlinePackage>,
@@ -243,6 +251,7 @@ pub fn newest_package_from_name(
     }
 }
 
+/// Finds all of the packages that are required to install this package
 pub fn resolve_dependencies_for_package(
     packages: &Vec<OnlinePackage>,
     package: Package,
@@ -280,6 +289,7 @@ pub fn resolve_dependencies_for_package(
     Ok(ret)
 }
 
+/// Install a single package into the pool. Does NOT handle dependencies
 pub fn install_pkg(pkg: &OnlinePackage) -> Result<PathBuf> {
     let pool = get_pool_location();
     if !pool.is_dir()
@@ -294,11 +304,16 @@ pub fn install_pkg(pkg: &OnlinePackage) -> Result<PathBuf> {
 
     let out_path: PathBuf = pool.join(pkg.name.clone() + "-" + &pkg.version);
 
+    if out_path.exists() {
+        std::fs::remove_dir_all(&out_path)?;
+    }
+
     archive.unpack(&out_path)?;
 
     Ok(out_path)
 }
 
+/// Install a package and all of it's dependencies into the pool
 pub fn install_pkg_and_dependencies(
     pkg: &OnlinePackage,
     pkgs: &Vec<OnlinePackage>,

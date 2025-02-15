@@ -12,10 +12,12 @@ pub fn get_pool_location() -> PathBuf {
     }
 }
 
+/// Gets the pool location for a package.
 pub fn package_to_pool_location(pkg: &Package) -> PathBuf {
     get_pool_location().join(pkg.name.clone() + "-" + &pkg.version)
 }
 
+/// Gets a list of all packages that are installed in the system.
 pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
     let pool = get_pool_location();
     let entries = fs::read_dir(pool)?;
