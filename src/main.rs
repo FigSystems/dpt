@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 mod config;
+mod env;
 mod gen_pkg;
 mod pkg;
 mod pool;
@@ -9,10 +10,14 @@ mod repo;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
-use std::process::exit;
+use std::{path::PathBuf, process::exit};
 
 use anyhow::{Context, Result};
+use env::get_env_location;
 use log::{debug, error, info};
+use pkg::string_to_package;
+use pool::{get_installed_packages, get_pool_location};
+use repo::package_to_onlinepackage;
 use users;
 
 fn main() -> Result<()> {
@@ -51,11 +56,35 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let path = std::path::PathBuf::from(&format!("{}", &args[2]));
+            let path = PathBuf::from(&format!("{}", &args[2]));
             let err = gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
             if let Err(e) = err {
                 error!("{}", e);
                 exit(1);
+            }
+        }
+        "build-env" => {
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+
+            let installed_packages = get_installed_packages()?;
+
+            for pkg in &args[2..] {
+                let pkg = &string_to_package(pkg)?;
+
+                let out_path =
+                    PathBuf::from(package_to_onlinepackage(pkg, &installed_packages)?.url);
+                let out_path = out_path.strip_prefix(get_pool_location())?;
+                let out_path = get_env_location().join(out_path);
+
+                env::generate_environment_for_package(
+                    pkg,
+                    &installed_packages,
+                    &out_path,
+                    &mut Vec::new(),
+                )?;
             }
         }
         "fetch" => {
@@ -124,7 +153,7 @@ fn main() -> Result<()> {
                 let dependencies = dependencies.unwrap();
 
                 for depencency in &dependencies {
-                    repo::install_pkg(&depencency).context("Failed to install package");
+                    repo::install_pkg(&depencency).context("Failed to install package")?;
                 }
 
                 debug!("Package {}:\n{:#?}", pkg, &dependencies);

@@ -210,7 +210,7 @@ pub fn get_dependency_provider_for_packages(
 }
 
 /// Converts by looping through the package list to find a match. Short circuted
-fn package_to_onlinepackage(
+pub fn package_to_onlinepackage(
     package: &Package,
     packages: &Vec<OnlinePackage>,
 ) -> Result<OnlinePackage> {
@@ -292,7 +292,7 @@ pub fn install_pkg(pkg: &OnlinePackage) -> Result<PathBuf> {
 
     let mut archive = pkg::decompress_pkg_read(&file[..])?; // Moves file
 
-    let out_path: PathBuf = pool.join(&pkg.name);
+    let out_path: PathBuf = pool.join(pkg.name.clone() + "-" + &pkg.version);
 
     archive.unpack(&out_path)?;
 
