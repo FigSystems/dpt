@@ -22,11 +22,6 @@ fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
 
-    if users::get_current_uid() != 0 {
-        error!("You need to be root to run this!");
-        exit(exitcode::USAGE);
-    }
-
     for arg in &args {
         match arg.as_str() {
             "--help" | "-h" => {
@@ -49,6 +44,7 @@ fn main() -> Result<()> {
 
     match &args.get(1).unwrap() as &str {
         "gen-pkg" => {
+            // You are allowed to generate a package as non-root
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -61,6 +57,7 @@ fn main() -> Result<()> {
             }
         }
         "build-env" => {
+            command_requires_root();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -103,18 +100,22 @@ fn main() -> Result<()> {
                 }
             }
         }
-        "list" => match repo::get_all_available_packages() {
-            Ok(x) => {
-                for pkg in x {
-                    info!("{:#?}", pkg);
+        "list" => {
+            command_requires_root();
+            match repo::get_all_available_packages() {
+                Ok(x) => {
+                    for pkg in x {
+                        info!("{:#?}", pkg);
+                    }
+                }
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    exit(exitcode::UNAVAILABLE)
                 }
             }
-            Err(e) => {
-                error!("{}", e.to_string());
-                exit(exitcode::UNAVAILABLE)
-            }
-        },
+        }
         "install" | "add" => {
+            command_requires_root();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -165,6 +166,13 @@ fn main() -> Result<()> {
 
     info!("Done!");
     Ok(())
+}
+
+fn command_requires_root() {
+    if users::get_current_uid() != 0 {
+        error!("You need to be root to run this!");
+        exit(exitcode::USAGE);
+    }
 }
 
 fn print_help() {
