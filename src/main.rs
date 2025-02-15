@@ -1,6 +1,3 @@
-// Improve rust's default behavior
-#![allow(dead_code)]
-
 mod config;
 mod env;
 mod gen_pkg;
@@ -17,7 +14,7 @@ use env::get_env_location;
 use log::{debug, error, info};
 use pkg::string_to_package;
 use pool::{get_installed_packages, get_pool_location};
-use repo::package_to_onlinepackage;
+use repo::{install_pkg_and_dependencies, package_to_onlinepackage, OnlinePackage};
 use users;
 
 fn main() -> Result<()> {
@@ -139,24 +136,14 @@ fn main() -> Result<()> {
                         exit(exitcode::UNAVAILABLE);
                     }
                 };
-                let dependencies = repo::resolve_dependencies_for_package(
-                    &packages,
-                    pkg::Package {
-                        name: newest_version.name,
-                        version: newest_version.version,
-                    },
-                );
-                if let Err(e) = dependencies {
-                    error!("Failed to resolve dependencies for package {}: {}", pkg, e);
-                    exit(exitcode::UNAVAILABLE);
-                }
-                let dependencies = dependencies.unwrap();
 
-                for depencency in &dependencies {
-                    repo::install_pkg(&depencency).context("Failed to install package")?;
-                }
+                let pkgs = repo::get_all_available_packages()?;
 
-                debug!("Package {}:\n{:#?}", pkg, &dependencies);
+                install_pkg_and_dependencies(
+                    &newest_version,
+                    &pkgs,
+                    &mut Vec::<OnlinePackage>::new(),
+                )?;
             }
         }
         cmd => {

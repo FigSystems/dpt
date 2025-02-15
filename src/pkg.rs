@@ -144,8 +144,9 @@ pub fn string_to_package(s: &str) -> Result<Package> {
         .ok_or(anyhow!("Failed to parse version from string {}", s))?;
     pubgrub::version::SemanticVersion::from_str(version)
         .context(anyhow!("Failed to parse version string {}", version))?;
-    let name: Vec<&str> = s.split("-").collect();
-    let name = &name[..name.len() - 1].concat();
+    let name: Vec<String> = s.split("-").map(|x| x.to_string() + "-").collect(); // Collect each segment, adding a '-' after each
+    let name = &name[..name.len() - 1].concat(); // Concat each segment
+    let name = &name[..name.len() - 1]; // Trim off last '-'
     Ok(Package {
         name: name.to_string(),
         version: version.to_string(),
@@ -223,6 +224,7 @@ depends python {
         assert_eq!(x, expected);
     }
 
+    #[test]
     fn string_to_package_1() {
         assert_eq!(
             string_to_package("a-b-c-d-e-1.2.3").unwrap(),
