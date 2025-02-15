@@ -175,19 +175,6 @@ pub fn decompress_pkg_read<'a>(
     Ok(archive)
 }
 
-/// Extracts the .fpkg into a directory
-pub fn extract_pkg(pkg: &Path, out: &Path) -> Result<()> {
-    let f = std::fs::File::open(pkg)?;
-
-    // let zstrm = zstd::Decoder::new(f)?;
-
-    // let mut archive = tar::Archive::new(zstrm);
-    let mut archive = decompress_pkg_read(f)?;
-    archive.unpack(out)?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use crate::pkg::string_to_package;

@@ -9,11 +9,11 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use std::{path::PathBuf, process::exit};
 
-use anyhow::{Context, Result};
-use env::get_env_location;
-use log::{debug, error, info};
-use pkg::string_to_package;
-use pool::{get_installed_packages, get_pool_location};
+use anyhow::Result;
+use env::{generate_environment_for_package, pool_to_env_location};
+use log::{error, info};
+use pkg::{onlinepackage_to_package, string_to_package, Package};
+use pool::{get_installed_packages, package_to_pool_location};
 use repo::{install_pkg_and_dependencies, package_to_onlinepackage, OnlinePackage};
 use users;
 
@@ -73,8 +73,7 @@ fn main() -> Result<()> {
 
                 let out_path =
                     PathBuf::from(package_to_onlinepackage(pkg, &installed_packages)?.url);
-                let out_path = out_path.strip_prefix(get_pool_location())?;
-                let out_path = get_env_location().join(out_path);
+                let out_path = pool_to_env_location(&out_path)?;
 
                 env::generate_environment_for_package(
                     pkg,
@@ -115,7 +114,7 @@ fn main() -> Result<()> {
                 exit(exitcode::UNAVAILABLE)
             }
         },
-        "install" => {
+        "install" | "add" => {
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -138,14 +137,26 @@ fn main() -> Result<()> {
                 };
 
                 let pkgs = repo::get_all_available_packages()?;
+                let mut done_list = Vec::<OnlinePackage>::new();
 
-                install_pkg_and_dependencies(
-                    &newest_version,
-                    &pkgs,
-                    &mut Vec::<OnlinePackage>::new(),
-                )?;
+                install_pkg_and_dependencies(&newest_version, &pkgs, &mut done_list)?;
+
+                let pkgs = get_installed_packages()?;
+                info!("{:?}", pkgs);
+
+                for done in done_list {
+                    generate_environment_for_package(
+                        &onlinepackage_to_package(&done),
+                        &pkgs,
+                        &pool_to_env_location(&package_to_pool_location(
+                            &onlinepackage_to_package(&done),
+                        ))?,
+                        &mut Vec::<Package>::new(),
+                    )?;
+                }
             }
         }
+        // Add 'rm'
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();

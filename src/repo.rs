@@ -220,7 +220,7 @@ pub fn package_to_onlinepackage(
         }
     }
 
-    bail!("Package not found")
+    bail!("Package {:?} not found", package)
 }
 
 pub fn newest_package_from_name(

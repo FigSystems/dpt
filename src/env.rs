@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 
 use crate::{
     pkg::{onlinepackage_to_package, Package},
+    pool::get_pool_location,
     repo::{package_to_onlinepackage, resolve_dependencies_for_package, OnlinePackage},
 };
 
@@ -17,6 +18,12 @@ pub fn get_env_location() -> PathBuf {
         Some(x) => PathBuf::from(x),
         None => PathBuf::from("/fpkg/env"),
     }
+}
+
+pub fn pool_to_env_location(pool_path: &Path) -> Result<PathBuf> {
+    let out_path = pool_path.strip_prefix(get_pool_location())?;
+    let out_path = get_env_location().join(out_path);
+    Ok(out_path)
 }
 
 pub fn generate_environment_for_package(
@@ -34,7 +41,11 @@ pub fn generate_environment_for_package(
     ))?;
 
     if done_list.is_empty() {
-        std::fs::remove_dir_all(out_path)?;
+        if let Ok(x) = std::fs::exists(out_path) {
+            if x {
+                std::fs::remove_dir_all(out_path)?;
+            }
+        }
     }
 
     for ent in WalkDir::new(&pkg_dir).into_iter().filter_map(|e| e.ok()) {

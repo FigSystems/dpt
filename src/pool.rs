@@ -16,24 +16,6 @@ pub fn package_to_pool_location(pkg: &Package) -> PathBuf {
     get_pool_location().join(pkg.name.clone() + "-" + &pkg.version)
 }
 
-pub fn package_to_pool_package(pkg: &Package) -> Result<OnlinePackage> {
-    let url = package_to_pool_location(pkg);
-    let name = pkg.name.clone();
-    let version = pkg.version.clone();
-    let depends = crate::pkg::parse_depends(&crate::pkg::parse_kdl(&fs::read_to_string(
-        url.join("fpkg/pkg.kdl"),
-    )?)?)?;
-    Ok(OnlinePackage {
-        name,
-        version,
-        url: url
-            .to_str()
-            .ok_or(anyhow!("Invalid file path!"))?
-            .to_string(),
-        depends,
-    })
-}
-
 pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
     let pool = get_pool_location();
     let entries = fs::read_dir(pool)?;
