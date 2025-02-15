@@ -32,7 +32,7 @@ Installs package(s) into the pool.
 
 ## fpkg rm/uninstall [package(s)]
 
-Removes a package from the current environment. Note that this does not automatically call rebuild unless if you specify the **—rebuild** flag.
+Removes package(s) from the pool.
 
 ## fpkg gen-pkg [directory]
 
