@@ -4,6 +4,7 @@ mod gen_pkg;
 mod pkg;
 mod pool;
 mod repo;
+mod run;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
@@ -14,7 +15,9 @@ use env::{generate_environment_for_package, pool_to_env_location};
 use log::{error, info};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
-use repo::{install_pkg_and_dependencies, package_to_onlinepackage, OnlinePackage};
+use repo::{
+    install_pkg_and_dependencies, newest_package_from_name, package_to_onlinepackage, OnlinePackage,
+};
 use uzers;
 
 fn main() -> Result<()> {
@@ -156,7 +159,22 @@ fn main() -> Result<()> {
                 }
             }
         }
-        "run" => {}
+        "run" => {
+            command_requires_root();
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+            let pkg = match string_to_package(&args[2]) {
+                Ok(x) => x,
+                Err(_) => onlinepackage_to_package(&newest_package_from_name(
+                    &args[2],
+                    &get_installed_packages()?,
+                )?),
+            };
+            info!("Running package {:?}", &pkg);
+            run::run_pkg(&pkg)?;
+        }
         // Add 'rm'
         cmd => {
             error!("Unknown command {}!", cmd);
