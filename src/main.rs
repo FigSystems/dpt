@@ -15,7 +15,7 @@ use log::{error, info};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
 use repo::{install_pkg_and_dependencies, package_to_onlinepackage, OnlinePackage};
-use users;
+use uzers;
 
 fn main() -> Result<()> {
     colog::init();
@@ -156,6 +156,7 @@ fn main() -> Result<()> {
                 }
             }
         }
+        "run" => {}
         // Add 'rm'
         cmd => {
             error!("Unknown command {}!", cmd);
@@ -169,7 +170,7 @@ fn main() -> Result<()> {
 }
 
 fn command_requires_root() {
-    if users::get_current_uid() != 0 {
+    if uzers::get_current_uid() != 0 {
         error!("You need to be root to run this!");
         exit(exitcode::USAGE);
     }
