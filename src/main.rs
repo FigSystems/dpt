@@ -19,7 +19,7 @@ use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name, package_to_onlinepackage, OnlinePackage,
 };
-use uzers;
+use uzers::{self, get_current_uid, get_effective_uid, switch::set_effective_uid};
 
 fn main() -> Result<()> {
     colog::init();
@@ -29,6 +29,11 @@ fn main() -> Result<()> {
     if argc < 2 {
         error!("Not enough arguments!");
         print_help();
+        exit(exitcode::USAGE);
+    }
+
+    if get_effective_uid() != 0 {
+        error!("FPKG needs to be installed setuid!");
         exit(exitcode::USAGE);
     }
 
@@ -64,7 +69,7 @@ fn main() -> Result<()> {
             }
         }
         "build-env" => {
-            command_requires_root();
+            command_requires_root_uid();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -87,28 +92,8 @@ fn main() -> Result<()> {
                 )?;
             }
         }
-        "fetch" => {
-            if argc < 3 {
-                error!("Not enough arguments!");
-                exit(exitcode::USAGE);
-            }
-
-            match repo::fetch_file(&args[2]) {
-                Err(e) => {
-                    error!("{}", e);
-                    exit(1);
-                }
-                Ok(v) => {
-                    println!(
-                        "{}",
-                        std::str::from_utf8(&v[..])
-                            .unwrap_or("Failed to convert fetched bytes to utf-8")
-                    );
-                }
-            }
-        }
         "list" => {
-            command_requires_root();
+            command_requires_root_uid();
             match repo::get_all_available_packages() {
                 Ok(x) => {
                     for pkg in x {
@@ -122,7 +107,7 @@ fn main() -> Result<()> {
             }
         }
         "install" | "add" => {
-            command_requires_root();
+            command_requires_root_uid();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -164,7 +149,7 @@ fn main() -> Result<()> {
             }
         }
         "run" => {
-            command_requires_root();
+            // command_requires_root_uid();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -180,7 +165,7 @@ fn main() -> Result<()> {
             run::run_pkg(&pkg)?;
         }
         "chroot-not-intended-for-interactive-use" => {
-            command_requires_root();
+            // command_requires_root_uid();
             info!("{:#?}", args);
             if argc < 4 {
                 error!("Not enough arguments!");
@@ -189,7 +174,8 @@ fn main() -> Result<()> {
             std::env::set_current_dir(&args[2])?;
             std::os::unix::fs::chroot(".")?;
             std::env::set_current_dir("/")?;
-            shed(get_original_user())?;
+            // shed(get_original_user())?;
+            set_effective_uid(get_current_uid())?;
             let mut p = std::process::Command::new(&args[3]);
             if argc > 4 {
                 for a in &args[4..] {
@@ -220,7 +206,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn command_requires_root() {
+fn command_requires_root_uid() {
     if uzers::get_current_uid() != 0 {
         error!("You need to be root to run this!");
         exit(exitcode::USAGE);

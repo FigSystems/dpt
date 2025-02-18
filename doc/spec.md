@@ -24,7 +24,7 @@ There are a bunch of terms and ideas used in this document:
 
 # Command line usage
 
-Covers the basics of fpkg’s command line usage.
+Covers the basics of fpkg’s command line usage. Do note that fpkg NEEDS to be installed SUID.
 
 ## fpkg install/add [package(s)]
 
