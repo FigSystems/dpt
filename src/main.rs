@@ -13,7 +13,6 @@ use std::{path::PathBuf, process::exit};
 use anyhow::{Context, Result};
 use env::{generate_environment_for_package, pool_to_env_location};
 use log::{error, info};
-use nix::libc::setuid;
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
@@ -210,24 +209,6 @@ fn command_requires_root_uid() {
     if uzers::get_current_uid() != 0 {
         error!("You need to be root to run this!");
         exit(exitcode::USAGE);
-    }
-}
-
-fn get_original_user() -> u32 {
-    if let Ok(x) = std::env::var("SUDO_UID") {
-        return x.parse().unwrap();
-    } else if let Ok(x) = std::env::var("PKEXEC_UID") {
-        return x.parse().unwrap();
-    } else {
-        0
-    }
-}
-
-fn shed(uid: u32) -> Result<()> {
-    match unsafe { setuid(uid) } {
-        0 => Ok(()),
-        -1 => Err(anyhow::anyhow!(std::io::Error::last_os_error())),
-        n => unreachable!("setuid returned {}", n),
     }
 }
 
