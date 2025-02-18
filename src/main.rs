@@ -148,7 +148,6 @@ fn main() -> Result<()> {
             }
         }
         "run" => {
-            // command_requires_root_uid();
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -164,16 +163,20 @@ fn main() -> Result<()> {
             run::run_pkg(&pkg)?;
         }
         "chroot-not-intended-for-interactive-use" => {
-            // command_requires_root_uid();
             info!("{:#?}", args);
             if argc < 4 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
+            let prev_dir = std::env::current_dir()?;
             std::env::set_current_dir(&args[2])?;
             std::os::unix::fs::chroot(".")?;
-            std::env::set_current_dir("/")?;
-            // shed(get_original_user())?;
+
+            if prev_dir.is_dir() {
+                std::env::set_current_dir(prev_dir)?;
+            } else {
+                std::env::set_current_dir("/")?;
+            }
             set_effective_uid(get_current_uid())?;
             let mut p = std::process::Command::new(&args[3]);
             if argc > 4 {
