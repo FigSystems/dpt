@@ -52,7 +52,7 @@ pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
     }
 }
 
-pub fn run_pkg(pkg: &Package) -> Result<()> {
+pub fn run_pkg(pkg: &Package, uid: u32) -> Result<()> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
         out_dir = get_run_location().join(get_random_string(10));
@@ -153,6 +153,7 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
                 "Failed to parse directory {} into string!",
                 &out_dir.display()
             ))?)
+            .arg(uid.to_string())
             .arg(Path::new(prefix).join(&pkg.name))
             .spawn()?
             .wait();

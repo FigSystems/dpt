@@ -18,7 +18,10 @@ use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name, package_to_onlinepackage, OnlinePackage,
 };
-use uzers::{self, get_current_uid, get_effective_uid, switch::set_effective_uid};
+use uzers::{
+    self, get_current_uid, get_effective_uid,
+    switch::{set_current_uid, set_effective_uid},
+};
 
 fn main() -> Result<()> {
     colog::init();
@@ -32,7 +35,7 @@ fn main() -> Result<()> {
     }
 
     if get_effective_uid() != 0 {
-        error!("FPKG needs to be installed setuid!");
+        error!("FPKG needs to be installed setuid or run as root!");
         exit(exitcode::USAGE);
     }
 
@@ -159,15 +162,19 @@ fn main() -> Result<()> {
                     &get_installed_packages()?,
                 )?),
             };
+            let uid = get_current_uid();
+            set_current_uid(0)?;
             info!("Running package {:?}", &pkg);
-            run::run_pkg(&pkg)?;
+            run::run_pkg(&pkg, uid)?;
         }
         "chroot-not-intended-for-interactive-use" => {
+            command_requires_root_uid();
             info!("{:#?}", args);
-            if argc < 4 {
+            if argc < 5 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
+            let uid: u32 = args[3].parse()?;
             let prev_dir = std::env::current_dir()?;
             std::env::set_current_dir(&args[2])?;
             std::os::unix::fs::chroot(".")?;
@@ -177,10 +184,11 @@ fn main() -> Result<()> {
             } else {
                 std::env::set_current_dir("/")?;
             }
+            set_current_uid(uid)?;
             set_effective_uid(get_current_uid())?;
-            let mut p = std::process::Command::new(&args[3]);
-            if argc > 4 {
-                for a in &args[4..] {
+            let mut p = std::process::Command::new(&args[4]);
+            if argc > 5 {
+                for a in &args[5..] {
                     p.arg(a);
                 }
             }
