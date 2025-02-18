@@ -1,5 +1,8 @@
 use log::error;
-use std::path::{Path, PathBuf};
+use std::{
+    os::unix::fs::symlink,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Context, Result};
 use log::info;
@@ -37,6 +40,14 @@ pub fn mount(src: &Path, target: &Path) -> Result<sys_mount::Mount, std::io::Err
     Mount::builder().flags(MountFlags::BIND).mount(src, target)
 }
 
+pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
+    std::fs::DirBuilder::new().recursive(true).create(&target)?;
+    match mount(&src, &target) {
+        Err(x) => bail!(x.to_string()),
+        Ok(_) => Ok(()),
+    }
+}
+
 pub fn run_pkg(pkg: &Package) -> Result<()> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
@@ -70,26 +81,26 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
     // Bind mount fpkg pool inside the out_dir
     let pool = get_pool_location();
     let pool_target = join_proper(&out_dir, &pool)?;
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .create(&pool_target)?;
-    match mount(&pool, &pool_target) {
-        Err(x) => bail!(x.to_string()),
-        Ok(_) => {}
-    }
+    bind_mount(&pool, &pool_target)?;
 
     // Bind mount fpkg envs inside the out_dir
     let env = get_env_location();
     let env_target = join_proper(&out_dir, &env)?;
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .create(&env_target)?;
-    match mount(&env, &env_target) {
-        Err(x) => bail!(x.to_string()),
-        Ok(_) => {}
-    }
+    bind_mount(&env, &env_target)?;
 
-    let mut links = Vec::<PathBuf>::new();
+    // Bind mount previous root directory
+    let root = PathBuf::from("/");
+    let root_target = join_proper(&out_dir, Path::new("fpkg-root"))?;
+    bind_mount(&root, &root_target)?;
+
+    let mut binds = Vec::<PathBuf>::new();
+
+    for bind in vec!["dev", "mnt", "media", "run", "var", "home"] {
+        let dir = Path::new("/").join(bind);
+        let dir_target = out_dir.join(bind);
+        bind_mount(&dir, &dir_target)?;
+        binds.push(dir_target);
+    }
 
     for ent in std::fs::read_dir(&env_dir)? {
         let ent = ent?;
@@ -112,8 +123,8 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
         }
 
         let target = join_proper(&out_dir, ent_relative_path)?;
-        std::os::unix::fs::symlink(ent_full_path, &target)?;
-        links.push(target);
+        symlink(ent_full_path, &target)?;
+        // links.push(target);
     }
 
     let mut cleanup = false;
@@ -140,12 +151,14 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
             .wait();
     }
 
-    for ent in &links {
-        std::fs::remove_dir_all(ent)?;
-    }
-
     unmount(&env_target, UnmountFlags::empty())?;
     unmount(&pool_target, UnmountFlags::empty())?;
+    unmount(&root_target, UnmountFlags::empty())?;
+
+    for bind in binds {
+        unmount(&bind, UnmountFlags::empty())?;
+        assert!(!bind.try_exists().unwrap());
+    }
 
     std::fs::remove_dir(&env_target)?;
     std::fs::remove_dir(&pool_target)?;
