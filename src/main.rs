@@ -10,9 +10,10 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use std::{path::PathBuf, process::exit};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use env::{generate_environment_for_package, pool_to_env_location};
 use log::{error, info};
+use nix::libc::setuid;
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
@@ -25,7 +26,16 @@ fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
 
+    if argc < 2 {
+        error!("Not enough arguments!");
+        print_help();
+        exit(exitcode::USAGE);
+    }
+
     for arg in &args {
+        if args[1] == "chroot-not-intended-for-interactive-use" {
+            break;
+        }
         match arg.as_str() {
             "--help" | "-h" => {
                 print_help();
@@ -37,12 +47,6 @@ fn main() -> Result<()> {
             }
             _ => {} // It will just be handeled as a positional argument
         }
-    }
-
-    if argc < 2 {
-        error!("Not enough arguments!");
-        print_help();
-        exit(exitcode::USAGE);
     }
 
     match &args.get(1).unwrap() as &str {
@@ -175,6 +179,35 @@ fn main() -> Result<()> {
             info!("Running package {:?}", &pkg);
             run::run_pkg(&pkg)?;
         }
+        "chroot-not-intended-for-interactive-use" => {
+            command_requires_root();
+            info!("{:#?}", args);
+            if argc < 4 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+            std::env::set_current_dir(&args[2])?;
+            std::os::unix::fs::chroot(".")?;
+            std::env::set_current_dir("/")?;
+            shed(get_original_user())?;
+            let mut p = std::process::Command::new(&args[3]);
+            if argc > 4 {
+                for a in &args[4..] {
+                    p.arg(a);
+                }
+            }
+
+            let exit_code = p
+                .spawn()
+                .context("In spawning")?
+                .wait()
+                .context("In waiting")?;
+            exit(
+                exit_code
+                    .code()
+                    .ok_or(anyhow::anyhow!("Failed to get process exit code!"))?,
+            );
+        }
         // Add 'rm'
         cmd => {
             error!("Unknown command {}!", cmd);
@@ -191,6 +224,24 @@ fn command_requires_root() {
     if uzers::get_current_uid() != 0 {
         error!("You need to be root to run this!");
         exit(exitcode::USAGE);
+    }
+}
+
+fn get_original_user() -> u32 {
+    if let Ok(x) = std::env::var("SUDO_UID") {
+        return x.parse().unwrap();
+    } else if let Ok(x) = std::env::var("PKEXEC_UID") {
+        return x.parse().unwrap();
+    } else {
+        0
+    }
+}
+
+fn shed(uid: u32) -> Result<()> {
+    match unsafe { setuid(uid) } {
+        0 => Ok(()),
+        -1 => Err(anyhow::anyhow!(std::io::Error::last_os_error())),
+        n => unreachable!("setuid returned {}", n),
     }
 }
 
