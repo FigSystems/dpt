@@ -167,6 +167,7 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
     let mut zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
 
     let mut tar = tar::Builder::new(&mut zstrm);
+    tar.follow_symlinks(false);
     tar.append_dir_all(".", &dir)?;
 
     tar.finish()?;
