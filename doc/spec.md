@@ -172,7 +172,7 @@ For dependency resolving, fpkg uses [PubGrub](https://crates.io/crates/pubgrub) 
 
 # Package running
 
-When running a package, fpkg will bind mount the /fpkg directory into a temporary directory, and then symlink all of the root level directories from the package into that temporary directory.
+When running a package, fpkg will bind mount the fpkg pool and env directories into a temporary directory, and then bind mount all of the root level directories from the package into that temporary directory.
 
 Then fpkg chroots into that environment and runs the command matching the package name, or, if that is not a available, panics. There are some directories which will be bind mounted from the host filesystem instead of from a package's environment. The directories are
 
@@ -182,16 +182,20 @@ Then fpkg chroots into that environment and runs the command matching the packag
 - `/media`: Same as `/mnt`
 - `/run` Runtime files
 - `/var`: Variable data.
+- `/tmp`: Temporary files
 
-Any conflicts of these directories with the directories from the package, the packages directories will be given priority.
+Any conflicts of these directories with the directories from the package, the packages directories will be given priority. The runtime directory is located at `/fpkg/run` by default, but this can be changed by placing the name of a directory in `/etc/fpkg/run`.
 
 _Example_
 
 ```
-/run/fpkg/envs/ad3GH4
-├── fpkg (Bind mounted to)-> /fpkg
-│   └── ...
-├── fpkg-root (Bind mounted to)-> /
+-> = bind mount
+
+/fpkg/run/ad3GH4
+├── fpkg
+│   ├── env -> /fpkg/env
+│   └── pool -> /fpkg/pool
+├── fpkg-root -> /
 ├── usr -> /fpkg/env/my-pkg-3.5.11/usr
 ├── bin -> /fpkg/env/my-pkg-3.5.11/bin
 ├── ... (Package files)

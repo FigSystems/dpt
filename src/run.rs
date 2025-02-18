@@ -1,8 +1,5 @@
 use log::error;
-use std::{
-    os::unix::fs::symlink,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use log::info;
@@ -14,6 +11,13 @@ use crate::{
     pkg::Package,
     pool::{get_pool_location, package_to_pool_location},
 };
+
+pub fn get_run_location() -> PathBuf {
+    match crate::config::get_config_option(&"run".to_string()) {
+        Some(x) => PathBuf::from(x),
+        None => PathBuf::from("/fpkg/run/"),
+    }
+}
 
 pub fn get_random_string(length: usize) -> String {
     let mut rng = rand::rng();
@@ -51,7 +55,7 @@ pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
 pub fn run_pkg(pkg: &Package) -> Result<()> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
-        out_dir = Path::new("/run/fpkg/env/").join(get_random_string(10));
+        out_dir = get_run_location().join(get_random_string(10));
     }
     std::fs::DirBuilder::new()
         .recursive(true)
@@ -95,13 +99,6 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
 
     let mut binds = Vec::<PathBuf>::new();
 
-    for bind in vec!["dev", "mnt", "media", "run", "var", "home"] {
-        let dir = Path::new("/").join(bind);
-        let dir_target = out_dir.join(bind);
-        bind_mount(&dir, &dir_target)?;
-        binds.push(dir_target);
-    }
-
     for ent in std::fs::read_dir(&env_dir)? {
         let ent = ent?;
         let ent_full_path = env_dir.join(ent.path());
@@ -123,8 +120,18 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
         }
 
         let target = join_proper(&out_dir, ent_relative_path)?;
-        symlink(ent_full_path, &target)?;
-        // links.push(target);
+        bind_mount(&ent_full_path, &target)?;
+        binds.push(target);
+    }
+
+    for bind in vec!["dev", "mnt", "media", "run", "var", "home", "tmp"] {
+        let dir = Path::new("/").join(bind);
+        let dir_target = out_dir.join(bind);
+        if dir_target.exists() {
+            continue;
+        }
+        bind_mount(&dir, &dir_target)?;
+        binds.push(dir_target);
     }
 
     let mut cleanup = false;
@@ -151,17 +158,26 @@ pub fn run_pkg(pkg: &Package) -> Result<()> {
             .wait();
     }
 
-    unmount(&env_target, UnmountFlags::empty())?;
-    unmount(&pool_target, UnmountFlags::empty())?;
-    unmount(&root_target, UnmountFlags::empty())?;
+    let mut binds2: Vec<PathBuf> = Vec::new();
+    let mut binds = binds;
+    binds.push(root_target);
+    binds.push(env_target);
+    binds.push(pool_target);
 
-    for bind in binds {
-        unmount(&bind, UnmountFlags::empty())?;
-        assert!(!bind.try_exists().unwrap());
+    for _ in 0..5 {
+        for bind in &binds {
+            let e = unmount(&bind, UnmountFlags::empty());
+            if e.is_err() {
+                binds2.push(bind.clone());
+            } else {
+                assert!(bind.read_dir()?.next().is_none());
+            }
+        }
+        binds = binds2.clone();
+        binds2 = Vec::new();
     }
 
-    std::fs::remove_dir(&env_target)?;
-    std::fs::remove_dir(&pool_target)?;
+    assert!(binds2.is_empty(), "Terminated to prevent data loss");
 
     std::fs::remove_dir_all(&out_dir)?;
 
