@@ -8,7 +8,7 @@ This document outlines the fpkg method of distributing software. This document s
 
 - Stability: I should be able to install many combinations of packages and not have anything break. Further, if something does break, I should be able to easily roll back.
 
-Reproducability could be defined as consistent outcomes. When a software developer releases a package, they want it to work on all system configurations. Conventional tools fail on this point as the developer have no idea what configuration their users may have on their system. fpkg excels in this area, however, as all applications have a well defined environment that the developer controls, unaffected by the user’s configuration.
+Reproducibility could be defined as consistent outcomes. When a software developer releases a package, they want it to work on all system configurations. Conventional tools fail on this point as the developer have no idea what configuration their users may have on their system. fpkg excels in this area, however, as all applications have a well defined environment that the developer controls, unaffected by the user’s configuration.
 
 Stability is another important topic. Any package manager should be stable, and never require breaking another package to install another. Dependency hell is an unfortunate result from conventional solutions, but most package management systems don’t care about fixing it, instead they just “freeze” packages at a known point in time. This is sad.
 
@@ -178,7 +178,7 @@ Then fpkg chroots into that environment and runs the command matching the packag
 
 - `/home`: Users files
 - `/dev`: Device files
-- `/mnt`: Useful for reading externel medium
+- `/mnt`: Useful for reading external medium
 - `/media`: Same as `/mnt`
 - `/run` Runtime files
 - `/var`: Variable data.

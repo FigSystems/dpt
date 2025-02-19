@@ -50,7 +50,7 @@ fn main() -> Result<()> {
                     println!("{}", env!("CARGO_PKG_VERSION"));
                     return Ok(());
                 }
-                _ => {} // It will just be handeled as a positional argument
+                _ => {} // It will just be handled as a positional argument
             }
         }
     }
