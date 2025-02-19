@@ -12,7 +12,7 @@ use std::{path::PathBuf, process::exit};
 
 use anyhow::{Context, Result};
 use env::{generate_environment_for_package, pool_to_env_location};
-use log::{error, info};
+use log::{error, info, warn};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
@@ -156,6 +156,9 @@ fn main() -> Result<()> {
             }
             let pkg = friendly_str_to_package(&args[2])?;
             let uid = get_current_uid();
+            if uid == 0 && std::env::var("SUDO_USER").is_ok() {
+                warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+            }
             set_current_uid(0)?;
             let mut run_args = Vec::<String>::new();
             if argc > 3 {
