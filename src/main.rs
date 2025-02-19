@@ -39,20 +39,19 @@ fn main() -> Result<()> {
         exit(exitcode::USAGE);
     }
 
-    for arg in &args {
-        if args[1] == "chroot-not-intended-for-interactive-use" {
-            break;
-        }
-        match arg.as_str() {
-            "--help" | "-h" => {
-                print_help();
-                return Ok(());
+    if args[1] != "chroot-not-intended-for-interactive-use" && args[1] != "run" {
+        for arg in &args {
+            match arg.as_str() {
+                "--help" | "-h" => {
+                    print_help();
+                    return Ok(());
+                }
+                "--version" | "-v" => {
+                    println!("{}", env!("CARGO_PKG_VERSION"));
+                    return Ok(());
+                }
+                _ => {} // It will just be handeled as a positional argument
             }
-            "--version" | "-v" => {
-                println!("{}", env!("CARGO_PKG_VERSION"));
-                return Ok(());
-            }
-            _ => {} // It will just be handeled as a positional argument
         }
     }
 
@@ -155,17 +154,17 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let pkg = match string_to_package(&args[2]) {
-                Ok(x) => x,
-                Err(_) => onlinepackage_to_package(&newest_package_from_name(
-                    &args[2],
-                    &get_installed_packages()?,
-                )?),
-            };
+            let pkg = friendly_str_to_package(&args[2])?;
             let uid = get_current_uid();
             set_current_uid(0)?;
             info!("Running package {:?}", &pkg);
-            run::run_pkg(&pkg, uid)?;
+            let mut run_args = Vec::<String>::new();
+            if argc > 3 {
+                for arg in &args[3..] {
+                    run_args.push(arg.clone());
+                }
+            }
+            run::run_pkg(&pkg, uid, run_args)?;
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
@@ -214,6 +213,16 @@ fn main() -> Result<()> {
 
     info!("Done!");
     Ok(())
+}
+
+fn friendly_str_to_package(arg: &str) -> Result<Package> {
+    let pkg = match string_to_package(arg) {
+        Ok(x) => x,
+        Err(_) => {
+            onlinepackage_to_package(&newest_package_from_name(arg, &get_installed_packages()?)?)
+        }
+    };
+    Ok(pkg)
 }
 
 fn command_requires_root_uid() {

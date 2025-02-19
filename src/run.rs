@@ -52,7 +52,7 @@ pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
     }
 }
 
-pub fn run_pkg(pkg: &Package, uid: u32) -> Result<()> {
+pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
         out_dir = get_run_location().join(get_random_string(10));
@@ -137,9 +137,13 @@ pub fn run_pkg(pkg: &Package, uid: u32) -> Result<()> {
     let mut cleanup = false;
 
     let mut prefix = "/";
-    if out_dir.join("bin").join(pkg.name.as_str()).is_file() {
+    if out_dir.join("bin").join(pkg.name.as_str()).is_file()
+        || out_dir.join("bin").join(pkg.name.as_str()).is_symlink()
+    {
         prefix = "/bin";
-    } else if out_dir.join("/usr/bin").join(pkg.name.as_str()).is_file() {
+    } else if out_dir.join("usr/bin").join(pkg.name.as_str()).is_file()
+        || out_dir.join("usr/bin").join(pkg.name.as_str()).is_symlink()
+    {
         prefix = "/usr/bin";
     } else {
         error!("Warning! No executable found!");
@@ -155,6 +159,7 @@ pub fn run_pkg(pkg: &Package, uid: u32) -> Result<()> {
             ))?)
             .arg(uid.to_string())
             .arg(Path::new(prefix).join(&pkg.name))
+            .args(args)
             .spawn()?
             .wait();
     }
