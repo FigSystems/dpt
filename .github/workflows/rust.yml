@@ -46,6 +46,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: fpkg
+          path: fpkg
       - name: Generate the changelog
         uses: orhun/git-cliff-action@v4
         with:
@@ -56,5 +57,5 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/x86_64-unknown-linux-musl/release/fpkg
+          files: fpkg
           body_path: CHANGELOG.md
