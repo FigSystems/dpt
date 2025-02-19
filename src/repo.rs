@@ -7,6 +7,7 @@ use pubgrub::report::{DefaultStringReporter, Reporter};
 use pubgrub::solver::OfflineDependencyProvider;
 use pubgrub::version::SemanticVersion;
 use reqwest::blocking::Client;
+use std::fmt::Display;
 use std::fs::{self, DirBuilder};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -22,6 +23,16 @@ pub struct OnlinePackage {
     pub version: String,
     pub url: String,
     pub depends: Vec<Dependency>,
+}
+
+impl Display for OnlinePackage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "OnlinePackage: {} {} {}",
+            self.name, self.version, self.url
+        )
+    }
 }
 
 /// Returns a list of repository's URLs
@@ -59,7 +70,9 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})")?
+            .template(
+                "{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})",
+            )?
             .progress_chars("##-"),
     );
     pb.set_message(format!("{}", url));
@@ -114,7 +127,10 @@ pub fn push_onto_url(base: &str, ext: &str) -> String {
 }
 
 /// Parses a repositories index file into an array of OnlinePackages
-pub fn parse_repository_index(index: &str, base_url: &str) -> Result<Vec<OnlinePackage>> {
+pub fn parse_repository_index(
+    index: &str,
+    base_url: &str,
+) -> Result<Vec<OnlinePackage>> {
     let doc: Result<KdlDocument, KdlError> = index.parse();
     if let Err(e) = doc {
         let diagnostics = e
@@ -143,7 +159,8 @@ pub fn parse_repository_index(index: &str, base_url: &str) -> Result<Vec<OnlineP
 
         let name = get_kdl_string_prop("name", pkg)?;
         let version = get_kdl_string_prop("version", pkg)?;
-        let url = push_onto_url(base_url, get_kdl_string_prop("path", pkg)?.as_str());
+        let url =
+            push_onto_url(base_url, get_kdl_string_prop("path", pkg)?.as_str());
 
         let children = pkg.children();
 
@@ -322,7 +339,8 @@ pub fn install_pkg_and_dependencies(
 ) -> Result<()> {
     install_pkg(pkg)?;
     done_list.push(pkg.clone());
-    let dependencies = resolve_dependencies_for_package(&pkgs, onlinepackage_to_package(pkg))?;
+    let dependencies =
+        resolve_dependencies_for_package(&pkgs, onlinepackage_to_package(pkg))?;
 
     for depends in dependencies {
         if done_list.contains(&depends) {
@@ -351,7 +369,8 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
     }
 }
             "###;
-        let x = parse_repository_index(index, "https://my.repo.here/fpkg").unwrap();
+        let x =
+            parse_repository_index(index, "https://my.repo.here/fpkg").unwrap();
         let expected: Vec<OnlinePackage> = vec![
             OnlinePackage {
                 name: "test".to_string(),

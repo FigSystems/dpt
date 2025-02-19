@@ -5,6 +5,7 @@ mod pkg;
 mod pool;
 mod repo;
 mod run;
+mod uninstall;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
@@ -16,7 +17,8 @@ use log::{error, info, warn};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
 use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
-    install_pkg_and_dependencies, newest_package_from_name, package_to_onlinepackage, OnlinePackage,
+    install_pkg_and_dependencies, newest_package_from_name,
+    package_to_onlinepackage, OnlinePackage,
 };
 use uzers::{
     self, get_current_uid, get_effective_uid,
@@ -39,7 +41,8 @@ fn main() -> Result<()> {
         exit(exitcode::USAGE);
     }
 
-    if args[1] != "chroot-not-intended-for-interactive-use" && args[1] != "run" {
+    if args[1] != "chroot-not-intended-for-interactive-use" && args[1] != "run"
+    {
         for arg in &args {
             match arg.as_str() {
                 "--help" | "-h" => {
@@ -63,7 +66,8 @@ fn main() -> Result<()> {
                 exit(exitcode::USAGE);
             }
             let path = PathBuf::from(&format!("{}", &args[2]));
-            let err = gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
+            let err =
+                gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
             if let Err(e) = err {
                 error!("{}", e);
                 exit(1);
@@ -81,8 +85,9 @@ fn main() -> Result<()> {
             for pkg in &args[2..] {
                 let pkg = &string_to_package(pkg)?;
 
-                let out_path =
-                    PathBuf::from(package_to_onlinepackage(pkg, &installed_packages)?.url);
+                let out_path = PathBuf::from(
+                    package_to_onlinepackage(pkg, &installed_packages)?.url,
+                );
                 let out_path = pool_to_env_location(&out_path)?;
 
                 env::generate_environment_for_package(
@@ -98,7 +103,7 @@ fn main() -> Result<()> {
             match repo::get_all_available_packages() {
                 Ok(x) => {
                     for pkg in x {
-                        info!("{:#?}", pkg);
+                        info!("{}", pkg);
                     }
                 }
                 Err(e) => {
@@ -125,7 +130,11 @@ fn main() -> Result<()> {
                 let version = match friendly_str_to_package(pkg, &packages) {
                     Ok(x) => x,
                     Err(e) => {
-                        error!("Failed to find package {}: {}", pkg, e.to_string());
+                        error!(
+                            "Failed to find package {}: {}",
+                            pkg,
+                            e.to_string()
+                        );
                         exit(exitcode::UNAVAILABLE);
                     }
                 };
@@ -155,7 +164,8 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let pkg = friendly_str_to_package(&args[2], &get_installed_packages()?)?;
+            let pkg =
+                friendly_str_to_package(&args[2], &get_installed_packages()?)?;
             let uid = get_current_uid();
             if uid == 0 && std::env::var("SUDO_USER").is_ok() {
                 warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
@@ -200,9 +210,9 @@ fn main() -> Result<()> {
                 .wait()
                 .context("In waiting")?;
             exit(
-                exit_code
-                    .code()
-                    .ok_or(anyhow::anyhow!("Failed to get process exit code!"))?,
+                exit_code.code().ok_or(anyhow::anyhow!(
+                    "Failed to get process exit code!"
+                ))?,
             );
         }
         "uninstall" | "rm" => {}
@@ -217,10 +227,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn friendly_str_to_package(arg: &str, pkgs: &Vec<OnlinePackage>) -> Result<Package> {
+fn friendly_str_to_package(
+    arg: &str,
+    pkgs: &Vec<OnlinePackage>,
+) -> Result<Package> {
     let pkg = match string_to_package(arg) {
         Ok(x) => x,
-        Err(_) => onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?),
+        Err(_) => {
+            onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?)
+        }
     };
     Ok(pkg)
 }

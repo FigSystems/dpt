@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use kdl::{KdlDocument, KdlError};
-use std::{io::BufRead, path::Path, str::FromStr};
+use std::{fmt::Display, io::BufRead, path::Path, str::FromStr};
 use tar::Archive;
 
 use crate::repo::OnlinePackage;
@@ -15,6 +15,12 @@ pub struct Dependency {
 pub struct Package {
     pub name: String,
     pub version: String,
+}
+
+impl Display for Package {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Package: {} {}", self.name, self.version)
+    }
 }
 
 impl PartialEq for Dependency {
@@ -164,7 +170,8 @@ pub fn string_to_package(s: &str) -> Result<Package> {
 pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
     let f = std::fs::File::create(&out)?;
 
-    let mut zstrm = zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
+    let mut zstrm =
+        zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
 
     let mut tar = tar::Builder::new(&mut zstrm);
     tar.follow_symlinks(false);

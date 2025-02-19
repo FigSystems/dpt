@@ -10,7 +10,10 @@ use walkdir::WalkDir;
 use crate::{
     pkg::{onlinepackage_to_package, Package},
     pool::get_pool_location,
-    repo::{package_to_onlinepackage, resolve_dependencies_for_package, OnlinePackage},
+    repo::{
+        package_to_onlinepackage, resolve_dependencies_for_package,
+        OnlinePackage,
+    },
 };
 
 /// Get the location of the environment directory

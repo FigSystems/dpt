@@ -8,8 +8,8 @@ pub fn gen_pkg(dir: &Path, out: &Path) -> Result<()> {
     if !dir.is_dir() {
         bail!("Directory {} does not exist!", &dir.display());
     }
-    let config_str =
-        fs::read_to_string(dir.join(Path::new("fpkg/pkg.kdl"))).context("pkg.kdl not found")?;
+    let config_str = fs::read_to_string(dir.join(Path::new("fpkg/pkg.kdl")))
+        .context("pkg.kdl not found")?;
     let config_str = config_str.as_str();
 
     pkg::verify_pkg_config(config_str)?;

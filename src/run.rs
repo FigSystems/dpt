@@ -39,7 +39,10 @@ pub fn make_path_relative(a: &Path) -> PathBuf {
 }
 
 /// Makes src's contents show up at target
-pub fn mount(src: &Path, target: &Path) -> Result<sys_mount::Mount, std::io::Error> {
+pub fn mount(
+    src: &Path,
+    target: &Path,
+) -> Result<sys_mount::Mount, std::io::Error> {
     Mount::builder().flags(MountFlags::BIND).mount(src, target)
 }
 
