@@ -15,7 +15,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  all:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,9 +36,17 @@ jobs:
         with:
           name: fpkg
           path: target/x86_64-unknown-linux-musl/release/fpkg
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.ref, 'refs/tags/v')
+    needs: build-and-test
+    steps:
+      - name: Download fpkg
+        uses: actions/download-artifact@v4
+        with:
+          name: fpkg
       - name: Generate the changelog
         uses: orhun/git-cliff-action@v4
-        if: startsWith(github.event.ref, 'refs/tags/v')
         with:
           config: cliff.toml
           args: --verbose --latest
@@ -46,7 +54,6 @@ jobs:
           OUTPUT: CHANGELOG.md
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.event.ref, 'refs/tags/v')
         with:
           files: target/x86_64-unknown-linux-musl/release/fpkg
           draft: true
