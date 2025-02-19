@@ -15,7 +15,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-test:
+  all:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,14 +36,6 @@ jobs:
         with:
           name: fpkg
           path: target/x86_64-unknown-linux-musl/release/fpkg
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download fpkg
-        uses: actions/download-artifact@v4
-        if: startsWith(github.event.ref, 'refs/tags/v')
-        with:
-          name: fpkg
       - name: Generate the changelog
         uses: orhun/git-cliff-action@v4
         if: startsWith(github.event.ref, 'refs/tags/v')
