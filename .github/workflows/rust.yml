@@ -56,8 +56,10 @@ jobs:
           args: --verbose --latest
         env:
           OUTPUT: CHANGELOG.md
+      - name: Debug ls
+        run: ls -R --color=auto
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: fpkg
+          files: fpkg/fpkg
           body_path: CHANGELOG.md
