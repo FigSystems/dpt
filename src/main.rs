@@ -157,7 +157,6 @@ fn main() -> Result<()> {
             let pkg = friendly_str_to_package(&args[2])?;
             let uid = get_current_uid();
             set_current_uid(0)?;
-            info!("Running package {:?}", &pkg);
             let mut run_args = Vec::<String>::new();
             if argc > 3 {
                 for arg in &args[3..] {
@@ -168,7 +167,6 @@ fn main() -> Result<()> {
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
-            info!("{:#?}", args);
             if argc < 5 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);

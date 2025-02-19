@@ -2,7 +2,6 @@ use log::error;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use log::info;
 use rand::prelude::*;
 use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
@@ -60,8 +59,6 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
     std::fs::DirBuilder::new()
         .recursive(true)
         .create(&out_dir)?;
-
-    info!("out_dir: {:?}", &out_dir);
 
     let pool_dir = package_to_pool_location(pkg);
 
