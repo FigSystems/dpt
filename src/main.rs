@@ -215,7 +215,22 @@ fn main() -> Result<()> {
                 ))?,
             );
         }
-        "uninstall" | "rm" => {}
+        "uninstall" | "rm" => {
+            command_requires_root_uid();
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+
+            let packages = get_installed_packages()?;
+
+            for pkg in &args[2..] {
+                uninstall::uninstall_package(
+                    &friendly_str_to_package(pkg, &packages)?,
+                    &packages,
+                )?;
+            }
+        }
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();
