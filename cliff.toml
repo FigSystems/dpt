@@ -55,6 +55,7 @@ commit_preprocessors = [
     # Check spelling of the commit with https://github.com/crate-ci/typos
     # If the spelling is incorrect, it will be automatically fixed.
     #{ pattern = '.*', replace_command = 'typos --write-changes -' },
+    { pattern = "#(\\d+)", href = "https://github.com/FigSystems/fpkg/issues/$1" },
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
@@ -70,6 +71,8 @@ commit_parsers = [
     { message = "^chore\\(pr\\)", skip = true },
     { message = "^chore\\(pull\\)", skip = true },
     { message = "^chore", skip = true },
+    { footer = "^changelog: ?ignore", skip = true },
+    { message = "^.*\\(internal.*\\)", skip = true },
     { message = "^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
     { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
     { message = "^revert", group = "<!-- 9 -->◀️ Revert" },
