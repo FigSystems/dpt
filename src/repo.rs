@@ -62,6 +62,7 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
             .template("{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})")?
             .progress_chars("##-"),
     );
+    pb.set_message(format!("{}", url));
 
     let mut buffer = Vec::new();
 
@@ -80,7 +81,7 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
         pb.set_position(downloaded);
     }
 
-    pb.finish_with_message("Finished download!");
+    pb.finish_with_message(format!("{}", url));
 
     Ok(buffer)
 }

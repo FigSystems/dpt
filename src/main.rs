@@ -122,18 +122,19 @@ fn main() -> Result<()> {
             };
 
             for pkg in &args[2..] {
-                let newest_version = match repo::newest_package_from_name(pkg, &packages) {
+                let version = match friendly_str_to_package(pkg, &packages) {
                     Ok(x) => x,
                     Err(e) => {
                         error!("Failed to find package {}: {}", pkg, e.to_string());
                         exit(exitcode::UNAVAILABLE);
                     }
                 };
+                let version = package_to_onlinepackage(&version, &packages)?;
 
                 let pkgs = repo::get_all_available_packages()?;
                 let mut done_list = Vec::<OnlinePackage>::new();
 
-                install_pkg_and_dependencies(&newest_version, &pkgs, &mut done_list)?;
+                install_pkg_and_dependencies(&version, &pkgs, &mut done_list)?;
 
                 let pkgs = get_installed_packages()?;
 
@@ -154,7 +155,7 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let pkg = friendly_str_to_package(&args[2])?;
+            let pkg = friendly_str_to_package(&args[2], &get_installed_packages()?)?;
             let uid = get_current_uid();
             if uid == 0 && std::env::var("SUDO_USER").is_ok() {
                 warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
@@ -204,7 +205,7 @@ fn main() -> Result<()> {
                     .ok_or(anyhow::anyhow!("Failed to get process exit code!"))?,
             );
         }
-        // Add 'rm'
+        "uninstall" | "rm" => {}
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();
@@ -216,12 +217,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn friendly_str_to_package(arg: &str) -> Result<Package> {
+fn friendly_str_to_package(arg: &str, pkgs: &Vec<OnlinePackage>) -> Result<Package> {
     let pkg = match string_to_package(arg) {
         Ok(x) => x,
-        Err(_) => {
-            onlinepackage_to_package(&newest_package_from_name(arg, &get_installed_packages()?)?)
-        }
+        Err(_) => onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?),
     };
     Ok(pkg)
 }
