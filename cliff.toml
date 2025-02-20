@@ -59,6 +59,7 @@ commit_preprocessors = [
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
+    { message = "^.*\\(internal.*\\)", skip = true },
     { message = "^feat", group = "<!-- 0 -->🚀 Features" },
     { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
     { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
@@ -72,7 +73,6 @@ commit_parsers = [
     { message = "^chore\\(pull\\)", skip = true },
     { message = "^chore", skip = true },
     { footer = "^changelog: ?ignore", skip = true },
-    { message = "^.*\\(internal.*\\)", skip = true },
     { message = "^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
     { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
     { message = "^revert", group = "<!-- 9 -->◀️ Revert" },
