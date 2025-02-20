@@ -7,7 +7,7 @@ use pubgrub::report::{DefaultStringReporter, Reporter};
 use pubgrub::solver::OfflineDependencyProvider;
 use pubgrub::version::SemanticVersion;
 use reqwest::blocking::Client;
-use std::fmt::Display;
+use std::fmt::{self, Display};
 use std::fs::{self, DirBuilder};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -272,7 +272,7 @@ pub fn newest_package_from_name(
 /// Finds all of the packages that are required to install this package
 pub fn resolve_dependencies_for_package(
     packages: &Vec<OnlinePackage>,
-    package: Package,
+    package: &Package,
 ) -> Result<Vec<OnlinePackage>> {
     let dependency_provider = get_dependency_provider_for_packages(&packages)?;
     package_to_onlinepackage(&package, &packages)?; // Verify that the package exits in the package vec
@@ -339,8 +339,10 @@ pub fn install_pkg_and_dependencies(
 ) -> Result<()> {
     install_pkg(pkg)?;
     done_list.push(pkg.clone());
-    let dependencies =
-        resolve_dependencies_for_package(&pkgs, onlinepackage_to_package(pkg))?;
+    let dependencies = resolve_dependencies_for_package(
+        &pkgs,
+        &onlinepackage_to_package(pkg),
+    )?;
 
     for depends in dependencies {
         if done_list.contains(&depends) {
@@ -429,7 +431,7 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
 
         let resolved = resolve_dependencies_for_package(
             &packages,
-            Package {
+            &Package {
                 name: "goal".to_string(),
                 version: "7.8.9".to_string(),
             },

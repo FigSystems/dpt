@@ -1,6 +1,11 @@
 use anyhow::{anyhow, bail, Context, Result};
 use kdl::{KdlDocument, KdlError};
-use std::{fmt::Display, io::BufRead, path::Path, str::FromStr};
+use std::{
+    fmt::{self, Display},
+    io::BufRead,
+    path::Path,
+    str::FromStr,
+};
 use tar::Archive;
 
 use crate::repo::OnlinePackage;

@@ -11,7 +11,7 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
 use std::{path::PathBuf, process::exit};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use env::{generate_environment_for_package, pool_to_env_location};
 use log::{error, info, warn};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
@@ -225,10 +225,19 @@ fn main() -> Result<()> {
             let packages = get_installed_packages()?;
 
             for pkg in &args[2..] {
-                uninstall::uninstall_package(
+                match uninstall::uninstall_package_and_deps(
                     &friendly_str_to_package(pkg, &packages)?,
                     &packages,
-                )?;
+                )? {
+                    uninstall::UninstallResult::Ok => {}
+                    uninstall::UninstallResult::DependedUponBy(x) => {
+                        bail!(
+                            "Cannot uninstall {} as it is depended upon by {}",
+                            pkg,
+                            x
+                        );
+                    }
+                }
             }
         }
         cmd => {

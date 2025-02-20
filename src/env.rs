@@ -73,7 +73,7 @@ pub fn generate_environment_for_package(
     done_list.push(pkg.clone());
 
     // Convert dependencies into packages by version solving
-    let dependencies = resolve_dependencies_for_package(&pkgs, pkg.clone())
+    let dependencies = resolve_dependencies_for_package(&pkgs, pkg)
         .context(anyhow!("Failed to resolve dependencies"))?;
 
     for dependency in dependencies {
