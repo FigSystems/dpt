@@ -98,15 +98,21 @@ fn main() -> Result<()> {
             }
         }
         "list" => {
-            command_requires_root_uid();
+            set_effective_uid(get_current_uid())?;
+            let mut message = String::new();
             match repo::get_all_available_packages() {
                 Ok(x) => {
                     for pkg in x {
-                        info!("{}", pkg);
+                        // info!("{}", pkg);
+                        message.push_str(&format!(
+                            "\n{}-{}",
+                            pkg.name, pkg.version
+                        ));
                     }
+                    info!("{}\n", message);
                 }
                 Err(e) => {
-                    error!("{}", e.to_string());
+                    error!("{}", e);
                     exit(exitcode::UNAVAILABLE)
                 }
             }
