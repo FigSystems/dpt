@@ -7,7 +7,7 @@ use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
 use crate::{
     env::{get_env_location, pool_to_env_location},
-    info::{self, get_info_location},
+    info::get_info_location,
     pkg::Package,
     pool::{get_pool_location, package_to_pool_location},
 };
