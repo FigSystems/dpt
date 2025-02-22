@@ -165,17 +165,7 @@ The repository's priorities decrease down the file i.e. The first repository has
 
 # Dependency resolving
 
-For dependency resolving, fpkg uses [PubGrub](https://crates.io/crates/pubgrub) due to it’s efficient and accurate dependency resolution. When one runs fpkg update what happens is
-
-- Fpkg searches the pool and discovers currently installed applications.
-
-- For each of the installed packages, fpkg
-
-  - Will perform dependency resolving (PubGrub) on those packages and reports any errors, to obtain that packages dependency tree.
-
-  - With the freshly obtained list of packages, fpkg fetches them and installs them in the pool.
-
-  - Fpkg refreshes each of the installed package’s environments.
+For dependency resolving, fpkg uses [PubGrub](https://crates.io/crates/pubgrub) due to it’s efficient and accurate dependency resolution.
 
 # Package running
 
