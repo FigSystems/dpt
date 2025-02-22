@@ -117,6 +117,15 @@ fn main() -> Result<()> {
                 }
             }
         }
+        "list-installed" => {
+            command_requires_root_uid();
+            let mut message = String::new();
+            let packages = store::get_installed_packages()?;
+            for pkg in packages {
+                message.push_str(&format!("\n{}-{}", pkg.name, pkg.version));
+            }
+            info!("{}\n", message);
+        }
         "install" | "add" => {
             command_requires_root_uid();
             if argc < 3 {
@@ -277,10 +286,12 @@ fn print_help() {
 Fpkg, package management, done right.
 
 Commands:
-    install/add    Installs packages
-    uninstall/rm   Uninstalls packages
-    run            Runs a program
-    gen-pkg        Generates a package from a directory
-    build-env      Build or refreshes a packages environment"
+    install/add     Installs packages
+    uninstall/rm    Uninstalls packages
+    list            Lists available packages from the repo
+    list-installed  Lists all installed packages
+    run             Runs a program
+    gen-pkg         Generates a package from a directory
+    build-env       Build or refreshes a packages environment"
     );
 }
