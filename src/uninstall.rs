@@ -1,18 +1,22 @@
 use crate::{
     env::pool_to_env_location,
     pkg::{onlinepackage_to_package, Package},
-    pool::package_to_pool_location,
-    repo::{
-        package_to_onlinepackage, resolve_dependencies_for_package,
-        OnlinePackage,
-    },
+    pool::{get_installed_packages, package_to_pool_location},
+    repo::{resolve_dependencies_for_package, OnlinePackage},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 
 #[derive(Debug)]
 pub enum UninstallResult {
     DependedUponBy(Package),
     Ok,
+}
+
+#[derive(Debug)]
+pub struct OnlinePackageWithDependCount {
+    pkg: OnlinePackage,
+    depends_count: u32,
+    manually_installed: bool,
 }
 
 pub fn uninstall_package(pkg: &Package) -> Result<()> {
@@ -32,29 +36,76 @@ pub fn uninstall_package(pkg: &Package) -> Result<()> {
     Ok(())
 }
 
-pub fn uninstall_package_and_deps(
-    pkg: &Package,
-    pkgs: &Vec<OnlinePackage>,
-) -> Result<UninstallResult> {
-    let self_pkg = package_to_onlinepackage(pkg, pkgs)
-        .context(format!("Failed to find package {}!", pkg))?;
-    for other_pkg in pkgs {
-        let other_pkg_pkg = onlinepackage_to_package(&other_pkg);
-        if &other_pkg_pkg == pkg {
-            continue;
-        }
+//pub fn uninstall_package_and_deps(
+//    pkg: &Package,
+//    pkgs: &Vec<OnlinePackage>,
+//) -> Result<UninstallResult> {
+//    let self_pkg = package_to_onlinepackage(pkg, pkgs)
+//        .context(format!("Failed to find package {}!", pkg))?;
+//    for other_pkg in pkgs {
+//        let other_pkg_pkg = onlinepackage_to_package(&other_pkg);
+//        if &other_pkg_pkg == pkg {
+//            continue;
+//        }
+//
+//        let depends = resolve_dependencies_for_package(pkgs, &other_pkg_pkg)?;
+//        for depend in depends {
+//            if depend == self_pkg {
+//                return Ok(UninstallResult::DependedUponBy(
+//                    onlinepackage_to_package(other_pkg),
+//                ));
+//            }
+//        }
+//    }
+//
+//    uninstall_package(pkg)?;
+//
+//    Ok(UninstallResult::Ok)
+//}
 
-        let depends = resolve_dependencies_for_package(pkgs, &other_pkg_pkg)?;
-        for depend in depends {
-            if depend == self_pkg {
-                return Ok(UninstallResult::DependedUponBy(
-                    onlinepackage_to_package(other_pkg),
-                ));
-            }
+/// Returns the amount of packages that depend on this package
+pub fn get_dependency_count_for_package() -> Result<()> {
+    let packages = get_installed_packages()?;
+    let mut ret = Vec::<OnlinePackageWithDependCount>::new();
+
+    for package in &packages {
+        ret.push(OnlinePackageWithDependCount {
+            pkg: package.clone(),
+            depends_count: 0,
+            manually_installed: false,
+        })
+    }
+
+    for package in &packages {
+        let mut dependencies = resolve_dependencies_for_package(
+            &packages,
+            &onlinepackage_to_package(&package),
+        )?;
+
+        let index =
+            dependencies
+                .iter()
+                .position(|x| x == package)
+                .ok_or(anyhow!(
+                "Failed to find package in dependencies returned by resolve"
+            ))?;
+        dependencies.swap_remove(index);
+
+        for depend in dependencies {
+            let index =
+                packages.iter().position(|x| x == &depend).ok_or(anyhow!(
+                "Failed to find package in dependencies returned by resolve"
+            ))?;
+
+            ret.get_mut(index)
+                .ok_or(anyhow!(
+                    "Failed to get index {} from array {:#?}",
+                    index,
+                    &packages
+                ))?
+                .depends_count += 1;
         }
     }
 
-    uninstall_package(pkg)?;
-
-    Ok(UninstallResult::Ok)
+    Ok(())
 }

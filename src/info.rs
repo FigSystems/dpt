@@ -1,0 +1,15 @@
+use std::path::PathBuf;
+
+use crate::pkg::Package;
+
+pub fn get_info_location() -> PathBuf {
+    match crate::config::get_config_option(&"info".to_string()) {
+        Some(x) => PathBuf::from(x),
+        None => PathBuf::from("/fpkg/info"),
+    }
+}
+
+/// Gets the pool location for a package.
+pub fn package_to_info_location(pkg: &Package) -> PathBuf {
+    get_info_location().join(pkg.name.clone() + "-" + &pkg.version)
+}

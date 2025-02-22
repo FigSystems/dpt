@@ -1,6 +1,7 @@
 mod config;
 mod env;
 mod gen_pkg;
+mod info;
 mod pkg;
 mod pool;
 mod repo;
@@ -225,19 +226,19 @@ fn main() -> Result<()> {
             let packages = get_installed_packages()?;
 
             for pkg in &args[2..] {
-                match uninstall::uninstall_package_and_deps(
-                    &friendly_str_to_package(pkg, &packages)?,
-                    &packages,
-                )? {
-                    uninstall::UninstallResult::Ok => {}
-                    uninstall::UninstallResult::DependedUponBy(x) => {
-                        bail!(
-                            "Cannot uninstall {} as it is depended upon by {}",
-                            pkg,
-                            x
-                        );
-                    }
-                }
+                //match uninstall::uninstall_package_and_deps(
+                //    &friendly_str_to_package(pkg, &packages)?,
+                //    &packages,
+                //)? {
+                //    uninstall::UninstallResult::Ok => {}
+                //    uninstall::UninstallResult::DependedUponBy(x) => {
+                //        bail!(
+                //            "Cannot uninstall {} as it is depended upon by {}",
+                //            pkg,
+                //            x
+                //        );
+                //    }
+                //}
             }
         }
         cmd => {

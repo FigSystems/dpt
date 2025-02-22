@@ -7,6 +7,7 @@ use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
 use crate::{
     env::{get_env_location, pool_to_env_location},
+    info::{self, get_info_location},
     pkg::Package,
     pool::{get_pool_location, package_to_pool_location},
 };
@@ -81,6 +82,15 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
             pkg.version
         );
     }
+
+    let info_dir = get_info_location();
+    if !info_dir.is_dir() {
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&info_dir)?;
+    }
+    let info_dir_target = join_proper(&out_dir, &info_dir)?;
+    bind_mount(&info_dir, &info_dir_target)?;
 
     // Bind mount fpkg pool inside the out_dir
     let pool = get_pool_location();
@@ -169,6 +179,7 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
     binds.push(root_target);
     binds.push(env_target);
     binds.push(pool_target);
+    binds.push(info_dir_target);
 
     for _ in 0..5 {
         for bind in &binds {
