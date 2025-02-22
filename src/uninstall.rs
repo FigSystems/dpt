@@ -1,9 +1,8 @@
 use crate::{
-    env::pool_to_env_location,
-    info::{get_manually_installed, package_to_info_location},
+    info::get_manually_installed,
     pkg::{onlinepackage_to_package, Package},
-    pool::{get_installed_packages, package_to_pool_location},
     repo::{resolve_dependencies_for_package, OnlinePackage},
+    store::{get_installed_packages, package_to_store_location},
 };
 use anyhow::{anyhow, bail, Result};
 use log::info;
@@ -17,31 +16,21 @@ pub struct OnlinePackageWithDependCount {
 
 pub fn uninstall_package(pkg: &Package) -> Result<()> {
     info!("Uninstalling {}", pkg);
-    let pool_loc = package_to_pool_location(pkg);
-    let env_loc = pool_to_env_location(&pool_loc)?;
-    let info_loc = package_to_info_location(pkg);
+    let store_loc = package_to_store_location(pkg);
 
-    if !pool_loc.exists() || !pool_loc.is_dir() {
-        bail!("{} does not have a path in the pool!", &pkg);
+    if !store_loc.exists() || !store_loc.is_dir() {
+        bail!("{} is not installed!", &pkg);
     }
 
-    if !env_loc.exists() || !env_loc.is_dir() {
-        bail!("{} does not have a path in the env directory!", &pkg);
-    }
-
-    if info_loc.is_dir() {
-        std::fs::remove_dir_all(&info_loc)?;
-    }
-
-    std::fs::remove_dir_all(&pool_loc)?;
-    std::fs::remove_dir_all(&env_loc)?;
+    std::fs::remove_dir_all(&store_loc)?;
     Ok(())
 }
 
-/// Returns the amount of packages that depend on this package
-pub fn get_dependency_count_for_package(
+/// Returns the dependency count of each package
+pub fn get_dependency_count_for_packages(
+    packages: &Vec<OnlinePackage>,
 ) -> Result<Vec<OnlinePackageWithDependCount>> {
-    let packages = get_installed_packages()?;
+    let packages = packages.clone();
     let mut ret = Vec::<OnlinePackageWithDependCount>::new();
 
     for package in &packages {
@@ -50,7 +39,7 @@ pub fn get_dependency_count_for_package(
             depends_count: 0,
             manually_installed: get_manually_installed(
                 &onlinepackage_to_package(package),
-            ),
+            )?,
         })
     }
 
@@ -89,7 +78,18 @@ pub fn get_dependency_count_for_package(
 }
 
 pub fn uninstall_package_and_deps(package: &Package) -> Result<()> {
-    let dep_count = get_dependency_count_for_package()?;
+    let packages = get_installed_packages()?;
+    let mut dep_count = get_dependency_count_for_packages(&packages)?;
+    let this_packages_dependencies =
+        resolve_dependencies_for_package(&packages, package)?;
+    for dep in dep_count.iter_mut() {
+        if this_packages_dependencies.contains(&dep.pkg) {
+            if dep.depends_count > 0 {
+                dep.depends_count -= 1;
+            }
+        }
+    }
+
     let cloned = package.clone();
     for pkg in dep_count {
         if onlinepackage_to_package(&pkg.pkg) == cloned {

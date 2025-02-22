@@ -3,9 +3,9 @@ mod env;
 mod gen_pkg;
 mod info;
 mod pkg;
-mod pool;
 mod repo;
 mod run;
+mod store;
 mod uninstall;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
@@ -13,14 +13,14 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 use std::{path::PathBuf, process::exit};
 
 use anyhow::{Context, Result};
-use env::{generate_environment_for_package, pool_to_env_location};
+use env::{generate_environment_for_package, package_to_env_location};
 use log::{error, info, warn};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
-use pool::{get_installed_packages, package_to_pool_location};
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name,
     package_to_onlinepackage, OnlinePackage,
 };
+use store::get_installed_packages;
 use uninstall::uninstall_package_and_deps;
 use uzers::{
     self, get_current_uid, get_effective_uid,
@@ -87,10 +87,7 @@ fn main() -> Result<()> {
             for pkg in &args[2..] {
                 let pkg = &string_to_package(pkg)?;
 
-                let out_path = PathBuf::from(
-                    package_to_onlinepackage(pkg, &installed_packages)?.url,
-                );
-                let out_path = pool_to_env_location(&out_path)?;
+                let out_path = package_to_env_location(&pkg)?;
 
                 env::generate_environment_for_package(
                     pkg,
@@ -157,8 +154,8 @@ fn main() -> Result<()> {
                     generate_environment_for_package(
                         &onlinepackage_to_package(&done),
                         &pkgs,
-                        &pool_to_env_location(&package_to_pool_location(
-                            &onlinepackage_to_package(&done),
+                        &package_to_env_location(&onlinepackage_to_package(
+                            &done,
                         ))?,
                         &mut Vec::<Package>::new(),
                     )?;

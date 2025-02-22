@@ -15,7 +15,7 @@ use std::str::FromStr;
 
 use crate::info::mark_as_manually_installed;
 use crate::pkg::{self, onlinepackage_to_package, Dependency, Package};
-use crate::pool::get_pool_location;
+use crate::store::get_store_location;
 use crate::CONFIG_LOCATION;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -310,12 +310,12 @@ pub fn resolve_dependencies_for_package(
 
 /// Install a single package into the pool. Does NOT handle dependencies
 pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
-    let pool = get_pool_location();
-    if !pool.is_dir() {
-        DirBuilder::new().recursive(true).create(&pool)?;
+    let store = get_store_location();
+    if !store.is_dir() {
+        DirBuilder::new().recursive(true).create(&store)?;
     }
 
-    let out_path: PathBuf = pool.join(pkg.name.clone() + "-" + &pkg.version);
+    let out_path: PathBuf = store.join(pkg.name.clone() + "-" + &pkg.version);
 
     if out_path.exists() {
         if reinstall {
@@ -329,7 +329,7 @@ pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
 
     let mut archive = pkg::decompress_pkg_read(&file[..])?;
 
-    archive.unpack(&out_path)?;
+    archive.unpack(&out_path.join("data"))?;
 
     Ok(out_path)
 }

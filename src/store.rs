@@ -5,22 +5,22 @@ use crate::pkg::{get_package_config, Package};
 use crate::repo::OnlinePackage;
 use anyhow::{anyhow, Result};
 
-pub fn get_pool_location() -> PathBuf {
-    match crate::config::get_config_option(&"pool".to_string()) {
+pub fn get_store_location() -> PathBuf {
+    match crate::config::get_config_option(&"store".to_string()) {
         Some(x) => PathBuf::from(x),
-        None => PathBuf::from("/fpkg/pool"),
+        None => PathBuf::from("/fpkg/store"),
     }
 }
 
 /// Gets the pool location for a package.
-pub fn package_to_pool_location(pkg: &Package) -> PathBuf {
-    get_pool_location().join(pkg.name.clone() + "-" + &pkg.version)
+pub fn package_to_store_location(pkg: &Package) -> PathBuf {
+    get_store_location().join(pkg.name.clone() + "-" + &pkg.version)
 }
 
 /// Gets a list of all packages that are installed in the system.
 pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
-    let pool = get_pool_location();
-    let entries = fs::read_dir(pool)?;
+    let store = get_store_location();
+    let entries = fs::read_dir(store)?;
     let mut packages = Vec::<OnlinePackage>::new();
 
     for ent in entries {
@@ -31,7 +31,7 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
 
-        let doc = &fs::read_to_string(path.join("fpkg/pkg.kdl"))?;
+        let doc = &fs::read_to_string(path.join("data/fpkg/pkg.kdl"))?;
         let pkg_config = get_package_config(&doc)?;
 
         packages.push(OnlinePackage {

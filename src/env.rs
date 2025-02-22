@@ -9,26 +9,20 @@ use walkdir::WalkDir;
 
 use crate::{
     pkg::{onlinepackage_to_package, Package},
-    pool::get_pool_location,
     repo::{
         package_to_onlinepackage, resolve_dependencies_for_package,
         OnlinePackage,
     },
+    run::join_proper,
+    store::get_store_location,
 };
 
-/// Get the location of the environment directory
-pub fn get_env_location() -> PathBuf {
-    match crate::config::get_config_option(&"env".to_string()) {
-        Some(x) => PathBuf::from(x),
-        None => PathBuf::from("/fpkg/env"),
-    }
-}
-
-/// Convert a path in the pool to it's equivalent path in the environment directory
-pub fn pool_to_env_location(pool_path: &Path) -> Result<PathBuf> {
-    let out_path = pool_path.strip_prefix(get_pool_location())?;
-    let out_path = get_env_location().join(out_path);
-    Ok(out_path)
+pub fn package_to_env_location(pkg: &Package) -> Result<PathBuf> {
+    Ok(join_proper(
+        &get_store_location(),
+        &Path::new(&format!("{}-{}", pkg.name, pkg.version)),
+    )?
+    .join("env"))
 }
 
 /// Generates the environment for a package, version solving to find dependencies.
@@ -40,10 +34,12 @@ pub fn generate_environment_for_package(
 ) -> Result<()> {
     let package = package_to_onlinepackage(pkg, pkgs)?;
     let pkg_dir = PathBuf::from_str(&package.url)?;
+    let pkg_data_dir = pkg_dir.clone().join("data");
+    // let pkg_env_dir = pkg_dir.clone().join("env");
 
-    pkg_dir.metadata().context(format!(
+    pkg_data_dir.metadata().context(format!(
         "Package directory '{}' does not exist!",
-        pkg_dir.display()
+        pkg_data_dir.display()
     ))?;
 
     if done_list.is_empty() {
@@ -54,8 +50,11 @@ pub fn generate_environment_for_package(
         }
     }
 
-    for ent in WalkDir::new(&pkg_dir).into_iter().filter_map(|e| e.ok()) {
-        let blank_path = ent.path().strip_prefix(&pkg_dir)?;
+    for ent in WalkDir::new(&pkg_data_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let blank_path = ent.path().strip_prefix(&pkg_data_dir)?;
         if blank_path.starts_with("fpkg") {
             continue;
         }

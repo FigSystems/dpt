@@ -1,29 +1,28 @@
-use std::path::PathBuf;
+use crate::run::join_proper;
+use crate::store::get_store_location;
+use std::path::{Path, PathBuf};
 
 use crate::pkg::Package;
 
 use anyhow::Result;
 
-pub fn get_info_location() -> PathBuf {
-    match crate::config::get_config_option(&"info".to_string()) {
-        Some(x) => PathBuf::from(x),
-        None => PathBuf::from("/fpkg/info"),
-    }
-}
-
-/// Gets the pool location for a package.
-pub fn package_to_info_location(pkg: &Package) -> PathBuf {
-    get_info_location().join(pkg.name.clone() + "-" + &pkg.version)
+/// Gets the info location for a package
+pub fn package_to_info_location(pkg: &Package) -> Result<PathBuf> {
+    Ok(join_proper(
+        &get_store_location(),
+        &Path::new(&format!("{}-{}", pkg.name, pkg.version)),
+    )?
+    .join("info"))
 }
 
 pub fn mark_as_manually_installed(pkg: &Package) -> Result<()> {
-    let loc = package_to_info_location(pkg);
+    let loc = package_to_info_location(pkg)?;
     std::fs::DirBuilder::new().recursive(true).create(&loc)?;
     std::fs::write(loc.join("manually_installed"), "")?;
     Ok(())
 }
 
-pub fn get_manually_installed(pkg: &Package) -> bool {
-    let loc = package_to_info_location(pkg);
-    loc.join("manually_installed").is_file()
+pub fn get_manually_installed(pkg: &Package) -> Result<bool> {
+    let loc = package_to_info_location(pkg)?;
+    Ok(loc.join("manually_installed").is_file())
 }

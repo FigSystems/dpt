@@ -1,10 +1,8 @@
 # Introduction
 
-This document outlines the fpkg method of distributing software. This document stresses 3 the points of
+This document outlines the fpkg method of distributing software. This document stresses the points of
 
 - Reproducibility: I should be able to give my package to a friend and it should work exactly the same as it did on my system.
-
-- Forward compatible: My friend should be able to run that exact same package 10 years later with no trouble.
 
 - Stability: I should be able to install many combinations of packages and not have anything break. Further, if something does break, I should be able to easily roll back.
 
@@ -14,13 +12,15 @@ Stability is another important topic. Any package manager should be stable, and 
 
 There are a bunch of terms and ideas used in this document:
 
-- Package pool: The “data” of the package manager. Directories containing the packages themselves. There is currently only one package pool on a given system, generally located it /fpkg/pool.
+- FPKG store: The directory containing all of the packages installed in the system, located by default at `/fpkg/store` but this can be customized by placing a directory name in the file `/etc/fpkg/store`.
 
-- Environment: A directory containing all the (symlinks to) a package’s, and its dependency’s, files.
+- Package: A single package, often located in an fpkg store. The is a directory containing the sub-directories of `data`, `env`, and `info`.
 
-- Package: A single package, often located in an fpkg pool.
+- Meta-info directory: A sub-directory of a package (`info`) containing meta info about a package. 
 
-- Meta-info directory: A directory containing meta info about a package. 
+- Data directory: A sub-directory of a package (`data`) containing the files of a package
+
+- Environment directory: A sub-directory of a package (`env`) containing all the symlinks to a package’s, and its dependency’s, files.
 
 - Repository: A location on the internet or locally that provides packages to fpkg.
 
@@ -30,11 +30,11 @@ Covers the basics of fpkg’s command line usage. Do note that fpkg NEEDS to be 
 
 ## fpkg install/add \[package(s)\]
 
-Installs package(s) into the pool.
+Installs package(s) into the store.
 
 ## fpkg rm/uninstall \[package(s)\]
 
-Removes package(s) from the pool.
+Removes package(s) from the store.
 
 ## fpkg gen-pkg \[directory\]
 
@@ -42,7 +42,7 @@ Generates a package from the directory given. More detail later.
 
 ## fpkg run \[program\]
 
-Runs a program inside its directory.
+Runs a package.
 
 ## fpkg build-env \[package\]
 
@@ -56,37 +56,34 @@ Updates the packages currently installed in the system
 
 Covers the inner and implementation details of fpkg.
 
-## The fpkg pool
+## The fpkg store
 
-The fpkg pool are composed of many directories with names following the pattern package-name-1.2.3. The main pool is stored at /fpkg/pool by default, but the location of this pool can be changed by placing the directory name in a file at `/etc/fpkg/pool`.
+The fpkg store are composed of many directories with names following the pattern package-name-1.2.3. The main store is located at /fpkg/store by default, but the location of this pool can be changed by placing a directory name in a file at `/etc/fpkg/pool`.
 
-_Example fpkg pool_
+_Example fpkg store_
 
 ```
-/fpkg/pool
+/fpkg/store
 ├── example-1.2.3
-│    ├── usr
-│    │    └── bin
-│    │        └── example
-│    └── ...
+│    ├── data
+│    ├── info
+│    └── env
+│    
 ├── random-lib-4.5.6
-│   ├── usr
-│   │    └── lib
-│   │       └── librandom.so
-│   └── ...
+│    └── ...
 └── ...
 ```
 
 ## Package environments
 
-For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The default environment directory is ``/fpkg/env`` but this can be changed by placing a directory name inside a file at the path `/etc/fpkg/env`. Each sub-directory under the environment directory will have a package with the same name, or rather, the environment has the same name as the package it represents.
+For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The environment directory for each package is located in the `env` sub-directory.
 
 ## Package meta-info directories
 
-For each package, when it is installed, a meta info directory MAY be created containing information about this package. The meta info directories are by default located under `/fpkg/info` but this can be customized by placing a directory name inside a file at the path `/etc/fpkg/info`. This directory should be removed if/when the package is uninstalled. The current meta info data that is included in this directory is as follows:
+For each package, when it is installed, a meta info sub-directory MAY be created containing information about this package. The current meta info data that is included in this directory is as follows:
 
 ```
-/fpkg/info/
+/fpkg/store/pkg-1.2.3/info
 └── manually-installed
 ```
 
@@ -100,7 +97,6 @@ The directory structure of an fpkg is quite basic, consisting of an FHS complian
 
 ```
 example-1.2.3
-
 ├── fpkg
 │    └── pkg.kdl # Package details. You write this.
 └── usr
@@ -111,7 +107,7 @@ example-1.2.3
             └── example.txt
 ```
 
-Most fpkgs are distributed as .fpkg files. A .fpkg file is just a compressed tar archive containing the fpkg.
+Most fpkgs are distributed as .fpkg files. A .fpkg file is just a zstd compressed tar archive containing the fpkg.
 
 ## Generating packages
 
@@ -183,7 +179,7 @@ For dependency resolving, fpkg uses [PubGrub](https://crates.io/crates/pubgrub) 
 
 # Package running
 
-When running a package, fpkg will bind mount the fpkg pool and env directories into a temporary directory, and then bind mount all of the root level directories from the package into that temporary directory.
+When running a package, fpkg will bind mount the fpkg store directory into a temporary directory, and then symlink all of the root level directories from the package into that temporary directory.
 
 Then fpkg chroots into that environment and runs the command matching the package name, or, if that is not a available, panics. There are some directories which will be bind mounted from the host filesystem instead of from a package's environment. The directories are
 
@@ -195,7 +191,7 @@ Then fpkg chroots into that environment and runs the command matching the packag
 - `/var`: Variable data.
 - `/tmp`: Temporary files
 
-Any conflicts of these directories with the directories from the package, the packages directories will be given priority. The runtime directory is located at `/fpkg/run` by default, but this can be changed by placing the name of a directory in `/etc/fpkg/run`.
+Any conflicts of these directories with the directories from the package, the package's directories will be given priority. The runtime directory is located at `/fpkg/run` by default, but this can be changed by placing the name of a directory in `/etc/fpkg/run`.
 
 _Example_
 
