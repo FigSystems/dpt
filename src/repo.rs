@@ -309,23 +309,25 @@ pub fn resolve_dependencies_for_package(
 }
 
 /// Install a single package into the pool. Does NOT handle dependencies
-pub fn install_pkg(pkg: &OnlinePackage) -> Result<PathBuf> {
+pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
     let pool = get_pool_location();
-    if !pool.is_dir()
-    /* i.e. exists  */
-    {
+    if !pool.is_dir() {
         DirBuilder::new().recursive(true).create(&pool)?;
     }
-
-    let file = fetch_file(&pkg.url)?;
-
-    let mut archive = pkg::decompress_pkg_read(&file[..])?; // Moves file
 
     let out_path: PathBuf = pool.join(pkg.name.clone() + "-" + &pkg.version);
 
     if out_path.exists() {
-        std::fs::remove_dir_all(&out_path)?;
+        if reinstall {
+            std::fs::remove_dir_all(&out_path)?;
+        } else {
+            return Ok(out_path);
+        }
     }
+
+    let file = fetch_file(&pkg.url)?;
+
+    let mut archive = pkg::decompress_pkg_read(&file[..])?;
 
     archive.unpack(&out_path)?;
 
@@ -339,7 +341,7 @@ pub fn install_pkg_and_dependencies(
     done_list: &mut Vec<OnlinePackage>,
     top_level: bool,
 ) -> Result<()> {
-    install_pkg(pkg)?;
+    install_pkg(pkg, false)?;
     if top_level {
         mark_as_manually_installed(&onlinepackage_to_package(pkg))?;
     }
