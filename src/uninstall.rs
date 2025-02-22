@@ -1,5 +1,6 @@
 use crate::{
     env::pool_to_env_location,
+    info::get_manually_installed,
     pkg::{onlinepackage_to_package, Package},
     pool::{get_installed_packages, package_to_pool_location},
     repo::{resolve_dependencies_for_package, OnlinePackage},
@@ -72,7 +73,9 @@ pub fn get_dependency_count_for_package() -> Result<()> {
         ret.push(OnlinePackageWithDependCount {
             pkg: package.clone(),
             depends_count: 0,
-            manually_installed: false,
+            manually_installed: get_manually_installed(
+                &onlinepackage_to_package(package),
+            ),
         })
     }
 

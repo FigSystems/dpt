@@ -13,6 +13,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::info::mark_as_manually_installed;
 use crate::pkg::{self, onlinepackage_to_package, Dependency, Package};
 use crate::pool::get_pool_location;
 use crate::CONFIG_LOCATION;
@@ -336,8 +337,12 @@ pub fn install_pkg_and_dependencies(
     pkg: &OnlinePackage,
     pkgs: &Vec<OnlinePackage>,
     done_list: &mut Vec<OnlinePackage>,
+    top_level: bool,
 ) -> Result<()> {
     install_pkg(pkg)?;
+    if top_level {
+        mark_as_manually_installed(&onlinepackage_to_package(pkg))?;
+    }
     done_list.push(pkg.clone());
     let dependencies = resolve_dependencies_for_package(
         &pkgs,
@@ -348,7 +353,7 @@ pub fn install_pkg_and_dependencies(
         if done_list.contains(&depends) {
             continue;
         }
-        install_pkg_and_dependencies(&depends, pkgs, done_list)?;
+        install_pkg_and_dependencies(&depends, pkgs, done_list, false)?;
         done_list.push(depends);
     }
 
