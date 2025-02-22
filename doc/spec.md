@@ -20,29 +20,31 @@ There are a bunch of terms and ideas used in this document:
 
 - Package: A single package, often located in an fpkg pool.
 
+- Meta-info directory: A directory containing meta info about a package. 
+
 - Repository: A location on the internet or locally that provides packages to fpkg.
 
 # Command line usage
 
 Covers the basics of fpkg’s command line usage. Do note that fpkg NEEDS to be installed SUID.
 
-## fpkg install/add [package(s)]
+## fpkg install/add \[package(s)\]
 
 Installs package(s) into the pool.
 
-## fpkg rm/uninstall [package(s)]
+## fpkg rm/uninstall \[package(s)\]
 
 Removes package(s) from the pool.
 
-## fpkg gen-pkg [directory]
+## fpkg gen-pkg \[directory\]
 
 Generates a package from the directory given. More detail later.
 
-## fpkg run [program]
+## fpkg run \[program\]
 
 Runs a program inside its directory.
 
-## fpkg build-env [package]
+## fpkg build-env \[package\]
 
 Builds, or rebuilds, the environment for the specified package.
 
@@ -77,7 +79,16 @@ _Example fpkg pool_
 
 ## Package environments
 
-For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The default environment directory is /fpkg/env but this can be changed by placing a directory name inside a file at the path `/etc/fpkg/env`. Each sub-directory under the environment directory will have a package with the same name, or rather, the environment has the same name as the package it represents.
+For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The default environment directory is ``/fpkg/env`` but this can be changed by placing a directory name inside a file at the path `/etc/fpkg/env`. Each sub-directory under the environment directory will have a package with the same name, or rather, the environment has the same name as the package it represents.
+
+## Package meta-info directories
+
+For each package, when it is installed, a meta info directory MAY be created containing information about this package. The meta info directories are by default located under `/fpkg/info` but this can be customized by placing a directory name inside a file at the path `/etc/fpkg/info`. This directory should be removed if/when the package is uninstalled. The current meta info data that is included in this directory is as follows:
+
+```
+/fpkg/info/
+└── manually-installed
+```
 
 # Packages
 
