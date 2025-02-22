@@ -142,12 +142,11 @@ fn main() -> Result<()> {
                 };
                 let version = package_to_onlinepackage(&version, &packages)?;
 
-                let pkgs = repo::get_all_available_packages()?;
                 let mut done_list = Vec::<OnlinePackage>::new();
 
                 install_pkg_and_dependencies(
                     &version,
-                    &pkgs,
+                    &packages,
                     &mut done_list,
                     true,
                 )?;
