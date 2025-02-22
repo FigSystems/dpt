@@ -38,33 +38,6 @@ pub fn uninstall_package(pkg: &Package) -> Result<()> {
     Ok(())
 }
 
-//pub fn uninstall_package_and_deps(
-//    pkg: &Package,
-//    pkgs: &Vec<OnlinePackage>,
-//) -> Result<UninstallResult> {
-//    let self_pkg = package_to_onlinepackage(pkg, pkgs)
-//        .context(format!("Failed to find package {}!", pkg))?;
-//    for other_pkg in pkgs {
-//        let other_pkg_pkg = onlinepackage_to_package(&other_pkg);
-//        if &other_pkg_pkg == pkg {
-//            continue;
-//        }
-//
-//        let depends = resolve_dependencies_for_package(pkgs, &other_pkg_pkg)?;
-//        for depend in depends {
-//            if depend == self_pkg {
-//                return Ok(UninstallResult::DependedUponBy(
-//                    onlinepackage_to_package(other_pkg),
-//                ));
-//            }
-//        }
-//    }
-//
-//    uninstall_package(pkg)?;
-//
-//    Ok(UninstallResult::Ok)
-//}
-
 /// Returns the amount of packages that depend on this package
 pub fn get_dependency_count_for_package(
 ) -> Result<Vec<OnlinePackageWithDependCount>> {
