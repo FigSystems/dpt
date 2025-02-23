@@ -38,7 +38,6 @@ impl PartialEq for Dependency {
 pub struct PackageConfig {
     pub name: String,
     pub version: String,
-    pub developer: String,
     pub depends: Vec<Dependency>,
 }
 
@@ -46,7 +45,6 @@ impl PartialEq for PackageConfig {
     fn eq(&self, other: &PackageConfig) -> bool {
         self.name == other.name
             && self.version == other.version
-            && self.developer == other.developer
             && self.depends == other.depends
     }
 }
@@ -78,13 +76,11 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig> {
 
     let name = get_kdl_value_string(&doc, "name")?;
     let version = get_kdl_value_string(&doc, "version")?;
-    let developer = get_kdl_value_string(&doc, "developer")?;
 
     let depends = parse_depends(&doc)?;
     Ok(PackageConfig {
         name,
         version,
-        developer,
         depends,
     })
 }
@@ -207,7 +203,6 @@ mod tests {
         let s = r###"
 name "abcd"
 version "145.54.12"
-developer GHJK
 
 depends "coreutils"
 depends python {
@@ -216,7 +211,6 @@ depends python {
         let expected = PackageConfig {
             name: "abcd".to_string(),
             version: "145.54.12".to_string(),
-            developer: "GHJK".to_string(),
             depends: vec![
                 Dependency {
                     name: "coreutils".to_string(),
