@@ -117,7 +117,6 @@ The process of generating packages requires writing a description file, installi
 # pkg-directory/fpkg/pkg.kdl
 name example
 version "1.2.3"
-developer "ExampleSoft Inc."
 
 depends python {
 	version "^3.12-5"
