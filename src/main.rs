@@ -10,13 +10,20 @@ mod uninstall;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 
-use std::{path::PathBuf, process::exit};
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 use anyhow::{Context, Result};
 use colog::format::CologStyle;
 use env::{generate_environment_for_package, package_to_env_location};
-use pkg::{onlinepackage_to_package, string_to_package, Package};
 use log::{error, info, warn, Level};
+use pkg::{
+    decompress_pkg_read, get_package_config, onlinepackage_to_package,
+    string_to_package, Package,
+};
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name,
     package_to_onlinepackage, OnlinePackage,
@@ -43,6 +50,7 @@ impl CologStyle for CustomLevelToken {
         }
     }
 }
+
 fn main() -> Result<()> {
     let mut builder = colog::basic_builder();
     builder.format(colog::formatter(CustomLevelToken));
@@ -257,6 +265,61 @@ fn main() -> Result<()> {
             }
             run_multiple_packages(&packages_to_run, uid, run_args)?;
         }
+        "gen-index" => {
+            let mut out_str = String::new();
+
+            for ent in std::fs::read_dir(".")? {
+                let ent = ent?.path();
+                match ent.extension() {
+                    Some(x) => {
+                        if x.to_str() != Some("fpkg") {
+                            continue;
+                        }
+                    }
+                    _ => {
+                        continue;
+                    }
+                }
+                let mut pkg = decompress_pkg_read(std::fs::File::open(ent)?)?;
+                for pkg_ent in pkg.entries()? {
+                    let mut pkg_ent = pkg_ent?;
+                    if pkg_ent.path()? == Path::new("fpkg/pkg.kdl") {
+                        let mut buf = String::new();
+                        pkg_ent.read_to_string(&mut buf)?;
+                        let cfg = get_package_config(&buf)?;
+                        out_str.push_str(&format!(
+                            "package name=\"{}\" version=\"{}\"",
+                            cfg.name.clone(),
+                            cfg.version.clone()
+                        ));
+
+                        if cfg.depends.is_empty() {
+                            out_str.push('\n');
+                        } else {
+                            // We have dependencies! Yay!
+                            out_str.push_str(&format!(" {{\n"));
+                            for depend in cfg.depends {
+                                out_str.push_str(&format!(
+                                    "    depends \"{}\"{}",
+                                    depend.name,
+                                    if &depend.version_mask != "" {
+                                        format!(
+                                            "{{\n        version_mask {}",
+                                            depend.version_mask
+                                        )
+                                    } else {
+                                        "\n".to_string()
+                                    }
+                                ));
+                            }
+                            out_str.push_str("}\n");
+                        }
+                    }
+                }
+            }
+
+            print!("{}", &out_str);
+        }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
             if argc < 5 {
@@ -351,7 +414,9 @@ Commands:
     list            Lists available packages from the repo
     list-installed  Lists all installed packages
     run             Runs a program
+    run-multi       Runs the first program specified in an env with the rest
     gen-pkg         Generates a package from a directory
-    build-env       Build or refreshes a packages environment"
+    build-env       Build or refreshes a packages environment
+    gen-index       Generates the index file for a package repository at CWD"
     );
 }
