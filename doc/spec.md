@@ -44,6 +44,10 @@ Generates a package from the directory given. More detail later.
 
 Runs a package.
 
+## fpkg run-multi \[programs\]
+
+Runs the first package specified in an environment with the other packages listed. e.g. `fpkg run-multi fish yazi musl-gcc nvim` will run `fish` in an environment that also includes `yazi`, `musl-gcc` and `nvim`.
+
 ## fpkg build-env \[package\]
 
 Builds, or rebuilds, the environment for the specified package.
