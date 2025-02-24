@@ -16,7 +16,7 @@ use std::{
     process::exit,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use colog::format::CologStyle;
 use env::{generate_environment_for_package, package_to_env_location};
 use log::{error, info, warn, Level};
@@ -280,17 +280,30 @@ fn main() -> Result<()> {
                         continue;
                     }
                 }
-                let mut pkg = decompress_pkg_read(std::fs::File::open(ent)?)?;
+                let mut pkg = decompress_pkg_read(std::fs::File::open(&ent)?)?;
                 for pkg_ent in pkg.entries()? {
                     let mut pkg_ent = pkg_ent?;
                     if pkg_ent.path()? == Path::new("fpkg/pkg.kdl") {
                         let mut buf = String::new();
                         pkg_ent.read_to_string(&mut buf)?;
                         let cfg = get_package_config(&buf)?;
+
+                        let ent_path = match ent.strip_prefix("./") {
+                            Ok(x) => x,
+                            Err(_) => &ent,
+                        };
+                        let ent_path = ent_path
+                            .to_str()
+                            .ok_or(anyhow!(
+                                "Failed to convert file path into a str"
+                            ))?
+                            .to_string();
+
                         out_str.push_str(&format!(
-                            "package name=\"{}\" version=\"{}\"",
+                            "package name=\"{}\" version=\"{}\" path=\"{}\"",
                             cfg.name.clone(),
-                            cfg.version.clone()
+                            cfg.version.clone(),
+                            ent_path
                         ));
 
                         if cfg.depends.is_empty() {
