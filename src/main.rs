@@ -20,6 +20,7 @@ use repo::{
     install_pkg_and_dependencies, newest_package_from_name,
     package_to_onlinepackage, OnlinePackage,
 };
+use run::run_multiple_packages;
 use store::get_installed_packages;
 use uninstall::uninstall_package_and_deps;
 use uzers::{
@@ -43,7 +44,9 @@ fn main() -> Result<()> {
         exit(exitcode::USAGE);
     }
 
-    if args[1] != "chroot-not-intended-for-interactive-use" && args[1] != "run"
+    if args[1] != "chroot-not-intended-for-interactive-use"
+        && args[1] != "run"
+        && args[1] != "run-multi"
     {
         for arg in &args {
             match arg.as_str() {
@@ -195,7 +198,42 @@ fn main() -> Result<()> {
                     run_args.push(arg.clone());
                 }
             }
-            run::run_pkg(&pkg, uid, run_args)?;
+            run::run_pkg(&pkg, uid, run_args, None)?;
+        }
+        "run-multi" => {
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+            let packages = get_installed_packages()?;
+            let mut packages_to_run = Vec::<Package>::new();
+            for pkg in &args[2..] {
+                if pkg == "--" {
+                    break;
+                }
+                let version = friendly_str_to_package(pkg, &packages)?;
+                packages_to_run.push(version);
+            }
+            let uid = get_current_uid();
+            if uid == 0 && std::env::var("SUDO_USER").is_ok() {
+                warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+            }
+            set_current_uid(0)?;
+
+            let mut run_args = Vec::<String>::new();
+            if argc > 3 {
+                let mut active = false;
+                for arg in &args[3..] {
+                    if active {
+                        run_args.push(arg.clone());
+                    } else {
+                        if arg == "--" {
+                            active = true;
+                        }
+                    }
+                }
+            }
+            run_multiple_packages(&packages_to_run, uid, run_args)?;
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();

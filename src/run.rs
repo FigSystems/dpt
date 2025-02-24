@@ -1,14 +1,16 @@
-use log::error;
+use log::{error, info};
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use rand::prelude::*;
 use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
 use crate::{
     env::package_to_env_location,
     pkg::Package,
-    store::{get_store_location, package_to_store_location},
+    store::{
+        get_installed_packages, get_store_location, package_to_store_location,
+    },
 };
 
 pub fn get_run_location() -> PathBuf {
@@ -54,7 +56,12 @@ pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
     }
 }
 
-pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
+pub fn run_pkg(
+    pkg: &Package,
+    uid: u32,
+    args: Vec<String>,
+    cmd: Option<&str>,
+) -> Result<()> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
         out_dir = get_run_location().join(get_random_string(10));
@@ -120,12 +127,16 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
     let mut cleanup = false;
 
     let mut prefix = "/";
-    if out_dir.join("bin").join(pkg.name.as_str()).is_file()
-        || out_dir.join("bin").join(pkg.name.as_str()).is_symlink()
+    let cmd = match cmd {
+        Some(x) => x,
+        None => &pkg.name.clone(),
+    };
+    if out_dir.join("bin").join(&cmd).is_file()
+        || out_dir.join("bin").join(&cmd).is_symlink()
     {
         prefix = "/bin";
-    } else if out_dir.join("usr/bin").join(pkg.name.as_str()).is_file()
-        || out_dir.join("usr/bin").join(pkg.name.as_str()).is_symlink()
+    } else if out_dir.join("usr/bin").join(&cmd).is_file()
+        || out_dir.join("usr/bin").join(&cmd).is_symlink()
     {
         prefix = "/usr/bin";
     } else {
@@ -141,7 +152,7 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
                 &out_dir.display()
             ))?)
             .arg(uid.to_string())
-            .arg(Path::new(prefix).join(&pkg.name))
+            .arg(Path::new(prefix).join(&cmd))
             .args(args)
             .spawn()?
             .wait();
@@ -168,6 +179,79 @@ pub fn run_pkg(pkg: &Package, uid: u32, args: Vec<String>) -> Result<()> {
     assert!(binds2.is_empty(), "Terminated to prevent data loss");
 
     std::fs::remove_dir_all(&out_dir)?;
+
+    Ok(())
+}
+
+pub fn run_multiple_packages(
+    pkgs: &Vec<Package>,
+    uid: u32,
+    args: Vec<String>,
+) -> Result<()> {
+    if pkgs.is_empty() {
+        bail!("No packages specified!");
+    }
+    let mut pkg_path = format!("tmp-env-{}", get_random_string(10));
+    while get_store_location()
+        .join(pkg_path.clone() + "-1.0.0")
+        .exists()
+    {
+        pkg_path = format!("tmp-env-{}", get_random_string(10));
+    }
+    let pkg_path_name = PathBuf::from(pkg_path.clone());
+    let pkg_path = get_store_location().join(pkg_path + "-1.0.0"); // Make immutable
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(&pkg_path)?;
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(pkg_path.join("data").join("fpkg"))?;
+
+    let mut pkg_depends_str = String::new();
+    for pkg in pkgs {
+        pkg_depends_str.push_str(&format!(
+            "depends \"{}\" {{\n    version \"{}\"\n}}\n",
+            pkg.name, pkg.version
+        ));
+    }
+
+    let mut pkg_info_str = String::new();
+    pkg_info_str.push_str(&format!(
+        "name \"{}\"\n",
+        pkg_path_name
+            .to_str()
+            .ok_or(anyhow!("Failed to convert path into string!"))?
+    ));
+
+    pkg_info_str.push_str("version \"1.0.0\"\n");
+    pkg_info_str.push_str(&pkg_depends_str);
+    std::fs::write(
+        pkg_path.join("data").join("fpkg").join("pkg.kdl"),
+        &pkg_info_str,
+    )?;
+
+    info!("{}", &pkg_info_str);
+
+    let installed_packages = get_installed_packages()?;
+
+    let our_tmp_pkg = Package {
+        name: pkg_path_name
+            .to_str()
+            .ok_or(anyhow!("Failed to convert path into string!"))?
+            .to_string(),
+        version: "1.0.0".to_string(),
+    };
+
+    crate::env::generate_environment_for_package(
+        &our_tmp_pkg,
+        &installed_packages,
+        &pkg_path.join("env"),
+        &mut Vec::new(),
+    )?;
+
+    run_pkg(&our_tmp_pkg, uid, args, Some(&pkgs[0].name))?;
+
+    std::fs::remove_dir_all(pkg_path)?;
 
     Ok(())
 }
