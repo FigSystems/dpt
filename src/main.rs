@@ -13,9 +13,10 @@ pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 use std::{path::PathBuf, process::exit};
 
 use anyhow::{Context, Result};
+use colog::format::CologStyle;
 use env::{generate_environment_for_package, package_to_env_location};
-use log::{error, info, warn};
 use pkg::{onlinepackage_to_package, string_to_package, Package};
+use log::{error, info, warn, Level};
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name,
     package_to_onlinepackage, OnlinePackage,
@@ -28,8 +29,29 @@ use uzers::{
     switch::{set_current_uid, set_effective_uid},
 };
 
+pub struct CustomLevelToken;
+
+// implement CologStyle on our type, and override `level_token`
+impl CologStyle for CustomLevelToken {
+    fn level_token(&self, level: &Level) -> &str {
+        match *level {
+            Level::Error => "E",
+            Level::Warn => "W",
+            Level::Info => "+",
+            Level::Debug => "D",
+            Level::Trace => "T",
+        }
+    }
+}
 fn main() -> Result<()> {
-    colog::init();
+    let mut builder = colog::basic_builder();
+    builder.format(colog::formatter(CustomLevelToken));
+    if cfg!(debug_assertions) {
+        builder.filter(None, log::LevelFilter::Debug);
+    } else {
+        builder.filter(None, log::LevelFilter::Info);
+    }
+    builder.init();
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
 

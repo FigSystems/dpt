@@ -122,7 +122,6 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
                 bail!("Name not specified for dependency!");
             }
             let name = name.unwrap();
-            log::debug!("depends {}", name);
 
             let version = {
                 let x = node.children();
