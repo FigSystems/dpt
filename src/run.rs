@@ -61,7 +61,7 @@ pub fn run_pkg(
     uid: u32,
     args: Vec<String>,
     cmd: Option<&str>,
-) -> Result<()> {
+) -> Result<i32> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
         out_dir = get_run_location().join(get_random_string(10));
@@ -143,9 +143,9 @@ pub fn run_pkg(
         error!("Warning! No executable found!");
         cleanup = true;
     }
-
+    let mut code: i32 = 0;
     if !cleanup {
-        let _ = std::process::Command::new(std::env::current_exe()?)
+        code = std::process::Command::new(std::env::current_exe()?)
             .arg("chroot-not-intended-for-interactive-use")
             .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
                 "Failed to parse directory {} into string!",
@@ -155,7 +155,9 @@ pub fn run_pkg(
             .arg(Path::new(prefix).join(&cmd))
             .args(args)
             .spawn()?
-            .wait();
+            .wait()?
+            .code()
+            .unwrap_or(89);
     }
 
     let mut binds2: Vec<PathBuf> = Vec::new();
@@ -180,14 +182,14 @@ pub fn run_pkg(
 
     std::fs::remove_dir_all(&out_dir)?;
 
-    Ok(())
+    Ok(code)
 }
 
 pub fn run_multiple_packages(
     pkgs: &Vec<Package>,
     uid: u32,
     args: Vec<String>,
-) -> Result<()> {
+) -> Result<i32> {
     if pkgs.is_empty() {
         bail!("No packages specified!");
     }
@@ -249,9 +251,9 @@ pub fn run_multiple_packages(
         &mut Vec::new(),
     )?;
 
-    run_pkg(&our_tmp_pkg, uid, args, Some(&pkgs[0].name))?;
+    let code = run_pkg(&our_tmp_pkg, uid, args, Some(&pkgs[0].name))?;
 
     std::fs::remove_dir_all(pkg_path)?;
 
-    Ok(())
+    Ok(code)
 }

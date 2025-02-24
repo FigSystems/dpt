@@ -228,7 +228,7 @@ fn main() -> Result<()> {
                     run_args.push(arg.clone());
                 }
             }
-            run::run_pkg(&pkg, uid, run_args, None)?;
+            exit(run::run_pkg(&pkg, uid, run_args, None)?);
         }
         "run-multi" => {
             if argc < 3 {
@@ -263,7 +263,7 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            run_multiple_packages(&packages_to_run, uid, run_args)?;
+            exit(run_multiple_packages(&packages_to_run, uid, run_args)?);
         }
         "gen-index" => {
             let mut out_str = String::new();
