@@ -1,7 +1,10 @@
 use log::{error, info};
-use std::path::{Path, PathBuf};
+use std::{
+    os::unix::fs::symlink,
+    path::{Path, PathBuf},
+};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rand::prelude::*;
 use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
@@ -122,6 +125,29 @@ pub fn run_pkg(
         }
         bind_mount(&dir, &dir_target)?;
         binds.push(dir_target);
+    }
+
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(out_dir.join("etc"))?;
+    for ent in Path::new("/etc").read_dir()? {
+        let ent = ent?;
+        let relative_ent = make_path_relative(&ent.path());
+        if ent.path().is_dir() {
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(out_dir.join(&ent.path()))?;
+        } else {
+            let target = out_dir.join("fpkg-root").join(&relative_ent);
+            let source = out_dir.join(&relative_ent);
+            let target = pathdiff::diff_paths(&target, &source)
+                .ok_or(anyhow!("Failed to diff paths"))?;
+            symlink(&target, &source).context(anyhow!(
+                "Failed to symlink {} to {}",
+                target.display(),
+                source.display()
+            ))?;
+        }
     }
 
     let mut cleanup = false;
