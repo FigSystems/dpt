@@ -52,7 +52,14 @@ pub fn mount(
 }
 
 pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
-    std::fs::DirBuilder::new().recursive(true).create(&target)?;
+    if src.is_dir() {
+        std::fs::DirBuilder::new().recursive(true).create(&target)?;
+    } else {
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&target.parent().unwrap_or(Path::new("/")))?;
+        std::fs::File::create(&target)?;
+    }
     match mount(&src, &target) {
         Err(x) => bail!(x.to_string()),
         Ok(_) => Ok(()),
@@ -140,6 +147,9 @@ pub fn run_pkg(
         } else {
             let target = out_dir.join("fpkg-root").join(&relative_ent);
             let source = out_dir.join(&relative_ent);
+            if source.exists() {
+                continue;
+            }
             let target = pathdiff::diff_paths(&target, &source)
                 .ok_or(anyhow!("Failed to diff paths"))?;
             symlink(&target, &source).context(anyhow!(
