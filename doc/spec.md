@@ -122,9 +122,7 @@ The process of generating packages requires writing a description file, installi
 name example
 version "1.2.3"
 
-depends python {
-	version "^3.12-5"
-}
+depends python version="^3.12-5"
 
 depends coreutils
 depends love

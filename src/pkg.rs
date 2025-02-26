@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use kdl::{KdlDocument, KdlError};
+use kdl::{KdlDocument, KdlError, KdlIdentifier};
 use std::{
     fmt::{self, Display},
     io::BufRead,
@@ -124,14 +124,14 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
             let name = name.unwrap();
 
             let version = {
-                let x = node.children();
-                if !x.is_none() {
-                    let x = x.unwrap();
-                    get_kdl_value_string(&x, "version")?
-                } else {
-                    "".to_string()
+                let mut v = "";
+                for ent in node.entries() {
+                    if ent.name() == Some(&KdlIdentifier::parse("version")?) {
+                        v = ent.value().as_string().ok_or(anyhow!("`version` specifier for dependency is not a string! (Did you forget quotes?)"))?;
+                    }
                 }
-            };
+                v
+            }.to_string();
             depends.push(Dependency {
                 name: name.to_string(),
                 version_mask: version,
