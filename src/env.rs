@@ -60,7 +60,7 @@ pub fn generate_environment_for_package(
         }
         let target_path = out_path.join(blank_path);
         let source_path = ent.path();
-        if !source_path.is_dir() {
+        if source_path.is_file() || source_path.is_symlink() {
             let _ = std::fs::remove_file(&target_path); // It is okay if this fails
             std::os::unix::fs::symlink(source_path, &target_path)
                 .context(anyhow!("In creating an symlink for environment"))?;
