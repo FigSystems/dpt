@@ -1,10 +1,7 @@
 use log::{error, info};
-use std::{
-    os::unix::fs::symlink,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use rand::prelude::*;
 use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
 
@@ -100,10 +97,10 @@ pub fn run_pkg(
     let store_target = join_proper(&out_dir, &store_dir)?;
     bind_mount(&store_dir, &store_target)?;
 
-    // Bind mount previous root directory
-    let root = PathBuf::from("/");
-    let root_target = join_proper(&out_dir, Path::new("fpkg-root"))?;
-    bind_mount(&root, &root_target)?;
+    //// Bind mount previous root directory
+    //let root = PathBuf::from("/");
+    //let root_target = join_proper(&out_dir, Path::new("fpkg-root"))?;
+    //bind_mount(&root, &root_target)?;
 
     let mut binds = Vec::<PathBuf>::new();
 
@@ -132,32 +129,6 @@ pub fn run_pkg(
         }
         bind_mount(&dir, &dir_target)?;
         binds.push(dir_target);
-    }
-
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .create(out_dir.join("etc"))?;
-    for ent in Path::new("/etc").read_dir()? {
-        let ent = ent?;
-        let relative_ent = make_path_relative(&ent.path());
-        if ent.path().is_dir() {
-            std::fs::DirBuilder::new()
-                .recursive(true)
-                .create(out_dir.join(&ent.path()))?;
-        } else {
-            let target = out_dir.join("fpkg-root").join(&relative_ent);
-            let source = out_dir.join(&relative_ent);
-            if source.exists() {
-                continue;
-            }
-            let target = pathdiff::diff_paths(&target, &source)
-                .ok_or(anyhow!("Failed to diff paths"))?;
-            symlink(&target, &source).context(anyhow!(
-                "Failed to symlink {} to {}",
-                target.display(),
-                source.display()
-            ))?;
-        }
     }
 
     let mut cleanup = false;
@@ -198,7 +169,7 @@ pub fn run_pkg(
 
     let mut binds2: Vec<PathBuf> = Vec::new();
     let mut binds = binds;
-    binds.push(root_target);
+    // binds.push(root_target);
     binds.push(store_target);
 
     for _ in 0..5 {
