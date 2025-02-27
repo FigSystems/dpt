@@ -127,6 +127,9 @@ pub fn run_pkg(
         if dir_target.exists() {
             continue;
         }
+        if !dir.exists() {
+            continue;
+        }
         bind_mount(&dir, &dir_target)?;
         binds.push(dir_target);
     }
