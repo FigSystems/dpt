@@ -5,7 +5,6 @@ use std::{
     fmt::{self, Display},
     io::BufRead,
     path::Path,
-    str::FromStr,
 };
 use tar::Archive;
 
