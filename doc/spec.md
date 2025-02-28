@@ -122,7 +122,7 @@ The process of generating packages requires writing a description file, installi
 name example
 version "1.2.3"
 
-depends python version="^3.12-5"
+depends python version=">=3.12"
 
 depends coreutils
 depends love
@@ -131,10 +131,10 @@ depends community
 ...
 ```
 
-Version ranges are specified in the format of
+Version ranges are specified immediately prior to the version. They can be one of the following
 
-- A `^` e.g. `^2.3.4` means `>=2.3.4` and `<3.0.0`
-- A `~` e.g. `^1.2.3` means `>=1.2.3` and `<1.3.0`
+- `>`
+- `>=`
 - No prefix requires the exact version specified
 
 ## Repository Format
