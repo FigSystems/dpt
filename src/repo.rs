@@ -1,22 +1,23 @@
+use crate::pkg::Version;
 use anyhow::{bail, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use kdl::{KdlDocument, KdlError, KdlNode};
-use pubgrub::error::PubGrubError;
-use pubgrub::range::Range;
-use pubgrub::report::{DefaultStringReporter, Reporter};
-use pubgrub::solver::OfflineDependencyProvider;
-use pubgrub::version::SemanticVersion;
+use pubgrub::OfflineDependencyProvider;
+use pubgrub::PubGrubError;
+use pubgrub::Ranges;
+use pubgrub::{DefaultStringReporter, Reporter};
 use reqwest::blocking::Client;
 use std::fmt::{self, Display};
 use std::fs::{self, DirBuilder};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use crate::info::mark_as_manually_installed;
 use crate::pkg::{self, onlinepackage_to_package, Dependency, Package};
 use crate::store::get_store_location;
 use crate::CONFIG_LOCATION;
+
+type VS = Ranges<Version>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OnlinePackage {
@@ -196,37 +197,29 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
 }
 
 /// Parse a version range from a string
-pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
+pub fn parse_version_range(vr: &str) -> Result<Ranges<Version>> {
     Ok(if vr.len() < 5 {
-        Range::any()
-    } else if vr.chars().next() == Some('^') {
-        let v = SemanticVersion::from_str(&vr[1..])?;
-        Range::between(v, v.bump_major())
-    } else if vr.chars().next() == Some('~') {
-        let v = SemanticVersion::from_str(&vr[1..])?;
-        Range::between(v, v.bump_minor())
+        VS::full()
     } else if vr.chars().next() == Some('>') {
         if vr.chars().nth(1).unwrap() == '=' {
-            Range::higher_than(SemanticVersion::from_str(&vr[2..])?)
+            VS::higher_than(Version::from_str(&vr[2..])?)
         } else {
-            Range::higher_than(
-                SemanticVersion::from_str(&vr[1..])?.bump_patch(),
-            )
+            Ranges::higher_than(Version::from_str(&vr[1..])?.bump())
         }
     } else {
-        let v = SemanticVersion::from_str(&vr)?;
-        Range::exact(v)
+        let v = Version::from_str(&vr)?;
+        VS::singleton(v)
     })
 }
 
 /// Get the dependency provider structure for the vector of packages passed in.
 pub fn get_dependency_provider_for_packages(
     packages: &Vec<OnlinePackage>,
-) -> Result<OfflineDependencyProvider<String, SemanticVersion>> {
-    let mut ret = OfflineDependencyProvider::<String, SemanticVersion>::new();
+) -> Result<OfflineDependencyProvider<String, VS>> {
+    let mut ret = OfflineDependencyProvider::<String, VS>::new();
 
     for pkg in packages {
-        let mut depends = Vec::<(String, Range<SemanticVersion>)>::new();
+        let mut depends = Vec::<(String, VS)>::new();
         for dep in &pkg.depends {
             let version = parse_version_range(&dep.version_mask)?;
 
@@ -235,7 +228,7 @@ pub fn get_dependency_provider_for_packages(
 
         ret.add_dependencies(
             pkg.name.clone(),
-            SemanticVersion::from_str(pkg.version.as_str())?,
+            Version::from_str(pkg.version.as_str())?,
             depends,
         );
     }
@@ -262,12 +255,12 @@ pub fn newest_package_from_name(
     package: &str,
     packages: &Vec<OnlinePackage>,
 ) -> Result<OnlinePackage> {
-    let mut newest_version = SemanticVersion::zero();
+    let mut newest_version = Version::zero();
     let mut newest_package: Option<OnlinePackage> = None;
     for pkg in packages {
         if pkg.name == package {
-            if SemanticVersion::from_str(&pkg.version)? > newest_version {
-                newest_version = SemanticVersion::from_str(&pkg.version)?;
+            if Version::from_str(&pkg.version)? > newest_version {
+                newest_version = Version::from_str(&pkg.version)?;
                 newest_package = Some(pkg.clone());
             }
         }
@@ -286,10 +279,10 @@ pub fn resolve_dependencies_for_package(
     let dependency_provider = get_dependency_provider_for_packages(&packages)?;
     package_to_onlinepackage(&package, &packages)?; // Verify that the package exits in the package vec
 
-    let resolved = pubgrub::solver::resolve(
+    let resolved = pubgrub::resolve(
         &dependency_provider,
         package.name.clone(),
-        SemanticVersion::from_str(package.version.as_str())?,
+        Version::from_str(package.version.as_str())?,
     );
 
     let resolved = match resolved {
