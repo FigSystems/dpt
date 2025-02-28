@@ -204,9 +204,8 @@ name "abcd"
 version "145.54.12"
 
 depends "coreutils"
-depends python {
-    version "^8.9.112"
-    }"###;
+depends python version="^8.9.112"
+"###;
         let expected = PackageConfig {
             name: "abcd".to_string(),
             version: "145.54.12".to_string(),
