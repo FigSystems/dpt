@@ -356,11 +356,20 @@ depends python version="^8.9.112"
 
     #[test]
     fn test_version_cmp() {
+        assert!(Version::from_str("531").unwrap() > Version::new(0, 531, 0));
         assert!(Version::new(0, 1, 2) > Version::new(0, 1, 1));
         assert!(Version::new(6, 5, 4) > Version::new(0, 22, 500));
         assert!(Version::new(98, 54, 97) == Version::new(98, 54, 97));
         assert!(Version::new(98, 54, 97) >= Version::new(98, 54, 97));
         assert!(Version::new(0, 0, 2) < Version::new(0, 0, 3));
         assert!(!(Version::new(0, 0, 2) < Version::new(0, 0, 2)));
+    }
+
+    #[test]
+    pub fn test_version_invalid() {
+        Version::from_str("").expect_err("Input was ''");
+        Version::from_str("531.12.75.22")
+            .expect_err("Input was '531.12.75.22'");
+        Version::from_str("45a.22").expect_err("Input was '45a.22'");
     }
 }
