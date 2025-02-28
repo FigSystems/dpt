@@ -197,7 +197,7 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
 
 /// Parse a version range from a string
 pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
-    Ok(if vr.len() < 1 {
+    Ok(if vr.len() < 5 {
         Range::any()
     } else if vr.chars().next() == Some('^') {
         let v = SemanticVersion::from_str(&vr[1..])?;
@@ -205,6 +205,14 @@ pub fn parse_version_range(vr: &str) -> Result<Range<SemanticVersion>> {
     } else if vr.chars().next() == Some('~') {
         let v = SemanticVersion::from_str(&vr[1..])?;
         Range::between(v, v.bump_minor())
+    } else if vr.chars().next() == Some('>') {
+        if vr.chars().nth(1).unwrap() == '=' {
+            Range::higher_than(SemanticVersion::from_str(&vr[2..])?)
+        } else {
+            Range::higher_than(
+                SemanticVersion::from_str(&vr[1..])?.bump_patch(),
+            )
+        }
     } else {
         let v = SemanticVersion::from_str(&vr)?;
         Range::exact(v)
@@ -373,9 +381,7 @@ mod tests {
 package name=test version="9.11.14" path="/test.fpkg"
 package name=example version="1.2.3" path="my-pkg.fpkg" {
     depends example1
-    depends example2 {
-        version "^10.2.0"
-    }
+    depends example2 version="^10.2.0"
 }
             "###;
         let x =
@@ -422,7 +428,7 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
                 url: "https://my.repo.pkg/fpkg/2.fpkg".to_string(),
                 depends: vec![Dependency {
                     name: "1".to_string(),
-                    version_mask: "^1.0.0".to_string(),
+                    version_mask: ">=1.0.0".to_string(),
                 }],
             },
             OnlinePackage {
@@ -431,7 +437,7 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
                 url: "https://my.repo.pkg/fpkg/goal.fpkg".to_string(),
                 depends: vec![Dependency {
                     name: "2".to_string(),
-                    version_mask: "~4.5.0".to_string(),
+                    version_mask: ">4.5.0".to_string(),
                 }],
             },
         ];
