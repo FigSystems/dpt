@@ -17,7 +17,7 @@ use crate::pkg::{self, onlinepackage_to_package, Dependency, Package};
 use crate::store::get_store_location;
 use crate::CONFIG_LOCATION;
 
-type VS = Ranges<Version>;
+type VersionSet = Ranges<Version>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OnlinePackage {
@@ -199,27 +199,27 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
 /// Parse a version range from a string
 pub fn parse_version_range(vr: &str) -> Result<Ranges<Version>> {
     Ok(if vr.len() < 5 {
-        VS::full()
+        VersionSet::full()
     } else if vr.chars().next() == Some('>') {
         if vr.chars().nth(1).unwrap() == '=' {
-            VS::higher_than(Version::from_str(&vr[2..])?)
+            VersionSet::higher_than(Version::from_str(&vr[2..])?)
         } else {
             Ranges::higher_than(Version::from_str(&vr[1..])?.bump())
         }
     } else {
         let v = Version::from_str(&vr)?;
-        VS::singleton(v)
+        VersionSet::singleton(v)
     })
 }
 
 /// Get the dependency provider structure for the vector of packages passed in.
 pub fn get_dependency_provider_for_packages(
     packages: &Vec<OnlinePackage>,
-) -> Result<OfflineDependencyProvider<String, VS>> {
-    let mut ret = OfflineDependencyProvider::<String, VS>::new();
+) -> Result<OfflineDependencyProvider<String, VersionSet>> {
+    let mut ret = OfflineDependencyProvider::<String, VersionSet>::new();
 
     for pkg in packages {
-        let mut depends = Vec::<(String, VS)>::new();
+        let mut depends = Vec::<(String, VersionSet)>::new();
         for dep in &pkg.depends {
             let version = parse_version_range(&dep.version_mask)?;
 

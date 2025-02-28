@@ -138,8 +138,6 @@ impl Display for Version {
     }
 }
 
-//impl pubgrub::version::Version for Version {}
-
 pub fn index_or_err_str(s: &Vec<&str>, i: u32) -> Result<String> {
     Ok((s
         .to_owned()
