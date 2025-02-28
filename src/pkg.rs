@@ -72,10 +72,10 @@ impl Version {
             ret.n2 = index_or_err_str(&str_split, 1)?.parse()?;
             ret.n3 = index_or_err_str(&str_split, 2)?.parse()?;
         } else if str_split.len() == 2 {
-            ret.n2 = index_or_err_str(&str_split, 0)?.parse()?;
-            ret.n3 = index_or_err_str(&str_split, 1)?.parse()?;
+            ret.n1 = index_or_err_str(&str_split, 0)?.parse()?;
+            ret.n2 = index_or_err_str(&str_split, 1)?.parse()?;
         } else if str_split.len() == 1 {
-            ret.n3 = index_or_err_str(&str_split, 0)?.parse()?;
+            ret.n1 = index_or_err_str(&str_split, 0)?.parse()?;
         } else {
             bail!("Not enough componenents in string {s}");
         }
@@ -348,10 +348,10 @@ depends python version="^8.9.112"
         );
         assert_eq!(
             Version::from_str("12.11").unwrap(),
-            Version::new(0, 12, 11)
+            Version::new(12, 11, 0)
         );
-        assert_eq!(Version::from_str("531").unwrap(), Version::new(0, 0, 531));
-        assert_eq!(Version::from_str("13.1").unwrap(), Version::new(0, 13, 1));
+        assert_eq!(Version::from_str("531").unwrap(), Version::new(531, 0, 0));
+        assert_eq!(Version::from_str("13.1").unwrap(), Version::new(13, 1, 0));
     }
 
     #[test]
