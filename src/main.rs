@@ -14,6 +14,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     process::exit,
+    str::FromStr,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -101,8 +102,17 @@ fn main() -> Result<()> {
                 exit(exitcode::USAGE);
             }
             let path = PathBuf::from(&format!("{}", &args[2]));
-            let err =
-                gen_pkg::gen_pkg(&path, &path.clone().with_extension("fpkg"));
+            let err = gen_pkg::gen_pkg(
+                &path,
+                &PathBuf::from_str(
+                    &(path
+                        .clone()
+                        .to_str()
+                        .ok_or(anyhow!("Invalid path '{}'!", path.display()))?
+                        .to_string()
+                        + ".fpkg"),
+                )?,
+            );
             if let Err(e) = err {
                 error!("{}", e);
                 exit(1);
