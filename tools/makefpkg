@@ -45,6 +45,5 @@ EOF
 
 cat "$pkgdir/fpkg/pkg.kdl"
 
-fpkg gen-pkg "$pkgdir"
-cp "$pkgdir.fpkg" "./$pkgname-$pkgver.fpkg"
+fpkg gen-pkg "$pkgdir" "$pkgname-$pkgver.fpkg"
 exit 0
