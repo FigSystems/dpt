@@ -101,18 +101,21 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
+
             let path = PathBuf::from(&format!("{}", &args[2]));
-            let err = gen_pkg::gen_pkg(
-                &path,
-                &PathBuf::from_str(
-                    &(path
-                        .clone()
-                        .to_str()
-                        .ok_or(anyhow!("Invalid path '{}'!", path.display()))?
-                        .to_string()
-                        + ".fpkg"),
-                )?,
-            );
+            let mut out = PathBuf::from_str(
+                &(path
+                    .clone()
+                    .to_str()
+                    .ok_or(anyhow!("Invalid path '{}'!", path.display()))?
+                    .to_string()
+                    + ".fpkg"),
+            )?;
+
+            if argc > 3 {
+                out = PathBuf::from_str(&args[3])?;
+            }
+            let err = gen_pkg::gen_pkg(&path, &out);
             if let Err(e) = err {
                 error!("{}", e);
                 exit(1);
