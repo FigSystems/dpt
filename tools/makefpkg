@@ -21,9 +21,13 @@ file="$1"
 source "$file"
 
 pkgdir="$(mktemp -d)"
+tmp_dir="$(mktemp -d)"
+old_pwd="$(pwd)"
 mkdir -p "$pkgdir"
 
+cd "$tmp_dir"
 build
+cd "$old_pwd"
 
 # Now the package is installed to pkgdir
 
