@@ -97,6 +97,7 @@ fn main() -> Result<()> {
     match &args.get(1).unwrap() as &str {
         "gen-pkg" => {
             // You are allowed to generate a package as non-root
+            set_effective_uid(get_current_uid())?;
             if argc < 3 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
@@ -279,6 +280,7 @@ fn main() -> Result<()> {
             exit(run_multiple_packages(&packages_to_run, uid, run_args)?);
         }
         "gen-index" => {
+            set_effective_uid(get_current_uid())?;
             let mut out_str = String::new();
 
             for ent in std::fs::read_dir(".")? {
