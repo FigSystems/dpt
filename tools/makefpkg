@@ -8,17 +8,17 @@ file="$1"
   file="FPKGBUILD"
 }
 
-[ -n "$1" ] || {
+[ -n "$1" ] || [ -f "FPKGBUILD" ] || {
   echo "Please specify an FPKGBUILD file"
   exit 1
 }
 
-[ -f "$1" ] || {
-  echo "File $1 does not exist!"
+[ -f "$file" ] || {
+  echo "File $file does not exist!"
   exit 1
 }
 
-source "$1"
+source "$file"
 
 pkgdir="$(mktemp -d)"
 mkdir -p "$pkgdir"
@@ -27,13 +27,11 @@ build
 
 # Now the package is installed to pkgdir
 
-
 function deps_to_string() {
-  for x in "${depends[@]}"
-  do
-    name="$(echo -n "$x" | grep -E -o "[a-ZA-Z\-_1-9]")"
+  for x in "${depends[@]}"; do
+    name="$(echo -n "$x" | grep -E -o "^[a-ZA-Z\-_1-9]+")"
     version="$(echo -n "$x" | grep -P -o "(?<=$name).*")"
-    echo "depends \"${name}\" $(if [ -n "$version"]; then; echo "version=\"$version\""; fi)"
+    echo "depends \"${name}\" $(if [ -n "$version" ]; then echo "version=\"$version\""; fi)"
   done
 }
 
@@ -48,4 +46,5 @@ EOF
 cat "$pkgdir/fpkg/pkg.kdl"
 
 fpkg gen-pkg "$pkgdir"
+cp "$pkgdir.fpkg" "./$pkgname-$pkgver.fpkg"
 exit 0
