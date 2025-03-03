@@ -137,6 +137,15 @@ Version ranges are specified immediately prior to the version. They can be one o
 - `>=`
 - No prefix requires the exact version specified
 
+### FPKGBUILDs
+
+For convenience in the process of generating packages, one can write an FPKGUILD file, which is very similar in kind to Arch Linux's PKGBUILDs. Not all features are supported. The currently defined variables/functions in FPKGBUILDs are
+
+- `pkgname`
+- `pkgver`
+- `depends`
+- `build()`
+
 ## Repository Format
 
 Repositories are simply http(s) servers with a predefined file structure as follows:

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -e
+
+file="$1"
+
+[ -f "FPKGBUILD" ] && {
+  file="FPKGBUILD"
+}
+
+[ -n "$1" ] || {
+  echo "Please specify an FPKGBUILD file"
+  exit 1
+}
+
+[ -f "$1" ] || {
+  echo "File $1 does not exist!"
+  exit 1
+}
+
+source "$1"
+
+pkgdir="$(mktemp -d)"
+mkdir -p "$pkgdir"
+
+build
+
+# Now the package is installed to pkgdir
+
+
+function deps_to_string() {
+  for x in "${depends[@]}"
+  do
+    name="$(echo -n "$x" | grep -E -o "[a-ZA-Z\-_1-9]")"
+    version="$(echo -n "$x" | grep -P -o "(?<=$name).*")"
+    echo "depends \"${name}\" $(if [ -n "$version"]; then; echo "version=\"$version\""; fi)"
+  done
+}
+
+mkdir -p "$pkgdir/fpkg"
+cat <<EOF >"$pkgdir/fpkg/pkg.kdl"
+name "$pkgname"
+version "$pkgver"
+
+$(deps_to_string)
+EOF
+
+cat "$pkgdir/fpkg/pkg.kdl"
+
+fpkg gen-pkg "$pkgdir"
+exit 0
