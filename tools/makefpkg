@@ -22,12 +22,17 @@ source "$file"
 
 pkgdir="$(mktemp -d)"
 tmp_dir="$(mktemp -d)"
-old_pwd="$(pwd)"
+oldpwd="$(pwd)"
 mkdir -p "$pkgdir"
 
 cd "$tmp_dir"
+
+for x in "${sources[@]}"; do
+  wget -q --show-progress "$x"
+done
+
 build
-cd "$old_pwd"
+cd "$oldpwd"
 
 # Now the package is installed to pkgdir
 
@@ -47,7 +52,9 @@ version "$pkgver"
 $(deps_to_string)
 EOF
 
+echo "----------------------"
 cat "$pkgdir/fpkg/pkg.kdl"
+echo "----------------------"
 
 fpkg gen-pkg "$pkgdir" "$pkgname-$pkgver.fpkg"
 exit 0
