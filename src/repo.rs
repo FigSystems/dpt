@@ -1,4 +1,5 @@
 use crate::pkg::Version;
+use anyhow::Context;
 use anyhow::{bail, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use kdl::{KdlDocument, KdlError, KdlNode};
@@ -242,7 +243,12 @@ pub fn package_to_onlinepackage(
     packages: &Vec<OnlinePackage>,
 ) -> Result<OnlinePackage> {
     for pkg in packages {
-        if pkg.name == package.name && pkg.version == package.version {
+        if pkg.name == package.name
+            && Version::from_str(&pkg.version)
+                .context("Failed to iterate through packages")?
+                == Version::from_str(&package.version)
+                    .context("Faield to iterate through packages")?
+        {
             return Ok(pkg.clone());
         }
     }
