@@ -1,5 +1,6 @@
 use std::{
     fs::{self},
+    os::unix::fs::symlink,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -47,6 +48,18 @@ pub fn generate_environment_for_package(
             if x {
                 std::fs::remove_dir_all(out_path)?;
             }
+        }
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(out_path)?;
+
+        for dir in vec!["lib", "bin", "sbin"] {
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(out_path.join("usr").join(dir))?;
+            let source = Path::new("usr").join(dir);
+            let target = out_path.join(dir);
+            symlink(source, target)?;
         }
     }
 
