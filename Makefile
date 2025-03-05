@@ -1,21 +1,29 @@
 DESTDIR ?= /usr/local
 
-none-specified: install-release
+none-specified: build-release
 
-install-common:
-	sudo cp tools/makefpkg $(DESTDIR)/bin/makefpkg
-	sudo chmod +x $(DESTDIR)/bin/makefpkg
+install: install-release
 
-install-debug: install-common
+build-debug:
 	cargo build
-	sudo mkdir -p $(DESTDIR)/bin
-	sudo cp -f target/x86_64-unknown-linux-musl/debug/fpkg $(DESTDIR)/bin/
-	sudo chown root:root $(DESTDIR)/bin/fpkg
-	sudo chmod u+s $(DESTDIR)/bin/fpkg
 
-install-release: install-common
+build-release:
 	cargo build --release
-	sudo mkdir -p $(DESTDIR)/bin
-	sudo cp -f target/x86_64-unknown-linux-musl/release/fpkg $(DESTDIR)/bin/
-	sudo chown root:root $(DESTDIR)/bin/fpkg
-	sudo chmod u+s $(DESTDIR)/bin/fpkg
+
+install-makefpkg:
+	mkdir -p $(DESTDIR)/bin
+	cp tools/makefpkg $(DESTDIR)/bin/makefpkg
+	chmod +x $(DESTDIR)/bin/makefpkg
+
+install-debug: build-debug install-makefpkg
+	mkdir -p $(DESTDIR)/bin
+	cp -f target/x86_64-unknown-linux-musl/debug/fpkg $(DESTDIR)/bin/
+	chown root:root $(DESTDIR)/bin/fpkg
+	chmod u+s $(DESTDIR)/bin/fpkg
+
+install-release: build-release install-makefpkg
+	build --release
+	mkdir -p $(DESTDIR)/bin
+	cp -f target/x86_64-unknown-linux-musl/release/fpkg $(DESTDIR)/bin/
+	chown root:root $(DESTDIR)/bin/fpkg
+	chmod u+s $(DESTDIR)/bin/fpkg
