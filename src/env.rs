@@ -61,6 +61,7 @@ pub fn generate_environment_for_package(
             let target = out_path.join(dir);
             symlink(source, target)?;
         }
+        symlink("usr/lib", out_path.join("lib64"))?;
     }
 
     for ent in WalkDir::new(&pkg_data_dir)
@@ -73,12 +74,18 @@ pub fn generate_environment_for_package(
         }
         let target_path = out_path.join(blank_path);
         let source_path = ent.path();
+
         if source_path.is_file() || source_path.is_symlink() {
-            if target_path.exists() {
+            if target_path.exists() || target_path.is_symlink() {
                 continue; // Another package with higher priority then us put a file here.
             }
-            std::os::unix::fs::symlink(source_path, &target_path)
-                .context(anyhow!("In creating an symlink for environment"))?;
+            std::os::unix::fs::symlink(source_path, &target_path).context(
+                anyhow!(
+                    "In creating an symlink for environment [{} -> {}]",
+                    source_path.display(),
+                    target_path.display()
+                ),
+            )?;
         } else {
             fs::DirBuilder::new().recursive(true).create(&target_path)?;
         }
