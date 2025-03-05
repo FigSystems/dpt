@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -u
+
+pkgname="fpkg"
+pkgver="0.3.0"
+
+depends=(
+  bash
+)
+
+function build() {
+  shopt -s dotglob
+  cp -r $oldpwd/* ./
+  mkdir $pkgdir/usr
+  make DESTDIR=$pkgdir/usr install-makefpkg
+}
