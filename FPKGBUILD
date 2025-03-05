@@ -9,6 +9,10 @@ depends=(
   bash
 )
 
+makedepends=(
+  make
+)
+
 function build() {
   shopt -s dotglob
   cp -r $oldpwd/* ./

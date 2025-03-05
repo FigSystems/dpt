@@ -5,7 +5,7 @@ set -e
 file="$1"
 
 [ -f "FPKGBUILD" ] && {
-  file="FPKGBUILD"
+  file="$PWD/FPKGBUILD"
 }
 
 [ -n "$1" ] || [ -f "FPKGBUILD" ] || {
@@ -17,6 +17,10 @@ file="$1"
   echo "File $file does not exist!"
   exit 1
 }
+
+set -u
+
+file="$(readlink -f "$file")"
 
 source "$file"
 
@@ -31,7 +35,17 @@ for x in "${sources[@]}"; do
   wget -q --show-progress "$x"
 done
 
+if [[ -v USE_HOST_TOOLS ]]; then
+  build
+else
+  fpkg run-multi bash coreutils "${makedepends[@]}" <<EOF
+source "$file"
+pkgdir="$pkgdir"
+oldpwd="$oldpwd"
+
 build
+EOF
+fi
 cd "$oldpwd"
 
 # Now the package is installed to pkgdir
