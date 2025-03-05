@@ -355,7 +355,8 @@ fn main() -> Result<()> {
                 exit(exitcode::USAGE);
             }
             let uid: u32 = args[3].parse()?;
-            let prev_dir = std::env::current_dir()?;
+            let prev_dir =
+                std::env::current_dir().unwrap_or(PathBuf::from_str("/")?);
             std::env::set_current_dir(&args[2])?;
             std::os::unix::fs::chroot(".")?;
 
