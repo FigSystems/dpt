@@ -29,6 +29,14 @@ tmp_dir="$(mktemp -d)"
 oldpwd="$(pwd)"
 mkdir -p "$pkgdir"
 
+trap 'exit_handling' EXIT
+
+function exit_handling() {
+  # error handling goes here
+  [ -n "$pkgdir" ] && rm -rf "$pkgdir"
+  [ -n "$tmp_dir" ] && rm -rf "$tmp_dir"
+}
+
 cd "$tmp_dir"
 
 for x in "${sources[@]}"; do
@@ -39,6 +47,9 @@ if [[ -v USE_HOST_TOOLS ]]; then
   build
 else
   fpkg run-multi bash coreutils "${makedepends[@]}" <<EOF
+set -e
+set -u
+
 source "$file"
 pkgdir="$pkgdir"
 oldpwd="$oldpwd"
