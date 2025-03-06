@@ -53,7 +53,7 @@ pub fn generate_environment_for_package(
             .recursive(true)
             .create(out_path)?;
 
-        for dir in vec!["lib", "bin", "sbin"] {
+        for dir in vec!["lib", "bin"] {
             std::fs::DirBuilder::new()
                 .recursive(true)
                 .create(out_path.join("usr").join(dir))?;
@@ -62,6 +62,8 @@ pub fn generate_environment_for_package(
             symlink(source, target)?;
         }
         symlink("usr/lib", out_path.join("lib64"))?;
+        symlink("bin", out_path.join("usr/sbin"))?;
+        symlink("usr/sbin", out_path.join("sbin"))?;
     }
 
     for ent in WalkDir::new(&pkg_data_dir)

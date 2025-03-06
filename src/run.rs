@@ -244,7 +244,7 @@ pub fn run_multiple_packages(
 
     info!("{}", &pkg_info_str);
 
-    let installed_packages = get_installed_packages()?;
+    let installed_packages = get_installed_packages(true)?;
 
     let our_tmp_pkg = Package {
         name: pkg_path_name

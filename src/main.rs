@@ -60,6 +60,7 @@ fn main() -> Result<()> {
     } else {
         builder.filter(None, log::LevelFilter::Info);
     }
+    builder.filter(Some("pubgrub"), log::LevelFilter::Warn);
     builder.init();
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
@@ -129,7 +130,7 @@ fn main() -> Result<()> {
                 exit(exitcode::USAGE);
             }
 
-            let installed_packages = get_installed_packages()?;
+            let installed_packages = get_installed_packages(false)?;
 
             for pkg in &args[2..] {
                 let pkg = &string_to_package(pkg)?;
@@ -167,7 +168,7 @@ fn main() -> Result<()> {
         "list-installed" => {
             command_requires_root_uid();
             let mut message = String::new();
-            let packages = store::get_installed_packages()?;
+            let packages = store::get_installed_packages(false)?;
             for pkg in packages {
                 message.push_str(&format!("\n{}-{}", pkg.name, pkg.version));
             }
@@ -210,7 +211,7 @@ fn main() -> Result<()> {
                     true,
                 )?;
 
-                let pkgs = get_installed_packages()?;
+                let pkgs = get_installed_packages(false)?;
 
                 for done in done_list {
                     generate_environment_for_package(
@@ -229,8 +230,10 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let pkg =
-                friendly_str_to_package(&args[2], &get_installed_packages()?)?;
+            let pkg = friendly_str_to_package(
+                &args[2],
+                &get_installed_packages(false)?,
+            )?;
             let uid = get_current_uid();
             if uid == 0 && std::env::var("SUDO_USER").is_ok() {
                 warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
@@ -249,7 +252,7 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
-            let packages = get_installed_packages()?;
+            let packages = get_installed_packages(false)?;
             let mut packages_to_run = Vec::<Package>::new();
             for pkg in &args[2..] {
                 if pkg == "--" {
@@ -392,9 +395,9 @@ fn main() -> Result<()> {
                 exit(exitcode::USAGE);
             }
 
-            let packages = get_installed_packages()?;
-
             for pkg in &args[2..] {
+                let packages = get_installed_packages(false)?;
+
                 uninstall_package_and_deps(&friendly_str_to_package(
                     &pkg, &packages,
                 )?)?;
