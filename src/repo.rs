@@ -38,6 +38,16 @@ impl Display for OnlinePackage {
     }
 }
 
+impl OnlinePackage {
+    /// Consumes self
+    pub fn to_package(self) -> Package {
+        Package {
+            name: self.name,
+            version: self.version,
+        }
+    }
+}
+
 /// Returns a list of repository's URLs
 pub fn get_repositories() -> Result<Vec<String>> {
     let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");

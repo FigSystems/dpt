@@ -271,6 +271,7 @@ pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
 
     let mut tar = tar::Builder::new(&mut zstrm);
     tar.follow_symlinks(false);
+    tar.mode(tar::HeaderMode::Complete);
     tar.append_dir_all(".", &dir)?;
 
     tar.finish()?;
@@ -283,7 +284,9 @@ pub fn decompress_pkg_read<'a>(
 ) -> Result<Archive<zstd::Decoder<'a, impl BufRead>>> {
     let zstrm = zstd::Decoder::new(pkg)?;
 
-    let archive = tar::Archive::new(zstrm);
+    let mut archive = tar::Archive::new(zstrm);
+    archive.set_unpack_xattrs(true);
+    archive.set_preserve_permissions(true);
     Ok(archive)
 }
 

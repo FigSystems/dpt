@@ -1,18 +1,19 @@
 use std::{
-    fs::{self},
+    fs::{self, read_link},
     os::unix::fs::symlink,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
 use anyhow::{anyhow, Context, Result};
+use log::warn;
 use walkdir::WalkDir;
 
 use crate::{
     pkg::{onlinepackage_to_package, Package},
     repo::{
-        package_to_onlinepackage, resolve_dependencies_for_package,
-        OnlinePackage,
+        newest_package_from_name, package_to_onlinepackage,
+        resolve_dependencies_for_package, OnlinePackage,
     },
     run::join_proper,
     store::get_store_location,
@@ -52,18 +53,19 @@ pub fn generate_environment_for_package(
         std::fs::DirBuilder::new()
             .recursive(true)
             .create(out_path)?;
-
-        for dir in vec!["lib", "bin"] {
-            std::fs::DirBuilder::new()
-                .recursive(true)
-                .create(out_path.join("usr").join(dir))?;
-            let source = Path::new("usr").join(dir);
-            let target = out_path.join(dir);
-            symlink(source, target)?;
+        if pkgs.iter().filter(|x| x.name == "base").count() > 0 {
+            if pkg.name != "base" {
+                log::info!("Generating base...");
+                generate_environment_for_package(
+                    &newest_package_from_name("base", &pkgs)?.to_package(),
+                    pkgs,
+                    out_path,
+                    done_list,
+                )?;
+            }
+        } else {
+            warn!("`base` package is not found!");
         }
-        symlink("usr/lib", out_path.join("lib64"))?;
-        symlink("bin", out_path.join("usr/sbin"))?;
-        symlink("usr/sbin", out_path.join("sbin"))?;
     }
 
     for ent in WalkDir::new(&pkg_data_dir)
@@ -81,15 +83,19 @@ pub fn generate_environment_for_package(
             if target_path.exists() || target_path.is_symlink() {
                 continue; // Another package with higher priority then us put a file here.
             }
-            std::os::unix::fs::symlink(source_path, &target_path).context(
-                anyhow!(
+            if source_path.is_file() {
+                symlink(source_path, &target_path).context(anyhow!(
                     "In creating an symlink for environment [{} -> {}]",
                     source_path.display(),
                     target_path.display()
-                ),
-            )?;
+                ))?;
+            } else {
+                symlink(read_link(&source_path)?, &target_path)?;
+            }
         } else {
-            fs::DirBuilder::new().recursive(true).create(&target_path)?;
+            if target_path.symlink_metadata().is_err() {
+                fs::DirBuilder::new().recursive(true).create(&target_path)?;
+            }
         }
     }
 
