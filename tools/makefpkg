@@ -4,7 +4,7 @@ set -e
 
 file="$1"
 
-[ -f "FPKGBUILD" ] && {
+[ -f "FPKGBUILD" ] && [ -z "$1" ] && {
   file="$PWD/FPKGBUILD"
 }
 
@@ -41,12 +41,17 @@ cd "$tmp_dir"
 
 for x in "${sources[@]}"; do
   wget -q --show-progress "$x"
+  tar -xf "${x##*/}" &>/dev/null || true
 done
 
 if [[ -v USE_HOST_TOOLS ]]; then
   build
 else
-  fpkg run-multi bash coreutils "${makedepends[@]}" <<EOF
+  default_package_list="bash coreutils"
+  if [[ -v NO_DEFAULT_PACKAGES ]]; then
+    default_package_list=""
+  fi
+  fpkg run-multi $default_package_list "${makedepends[@]}" <<EOF
 set -e
 set -u
 
