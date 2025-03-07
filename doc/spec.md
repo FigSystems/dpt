@@ -80,7 +80,7 @@ _Example fpkg store_
 
 ## Package environments
 
-For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The environment directory for each package is located in the `env` sub-directory.
+For each package, when it is installed, an environment is created. Each environment consists of symlinks to the main files inside the package and it’s dependencies. The environment directory for each package is located in the `env` sub-directory. Each packages environment will also include a package called `base`. An OS will likely use this to establish a file system structure and other files specific to any given OS.
 
 ## Package meta-info directories
 
@@ -144,6 +144,7 @@ For convenience in the process of generating packages, one can write an FPKGUILD
 - `pkgname`
 - `pkgver`
 - `depends`
+- `makedepends`
 - `build()`
 
 ## Repository Format
