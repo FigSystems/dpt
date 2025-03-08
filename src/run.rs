@@ -1,5 +1,8 @@
 use log::{error, info};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::hard_link,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, bail, Result};
 use rand::prelude::*;
@@ -117,7 +120,15 @@ pub fn run_pkg(
         }
 
         let target = join_proper(&out_dir, ent_relative_path)?;
-        bind_mount(&ent_full_path, &target)?;
+        if ent_full_path.is_file() {
+            bind_mount(&ent_full_path, &target)?;
+        } else if ent_full_path.is_symlink() {
+            hard_link(&ent_full_path, &target)?;
+        } else if ent_full_path.is_dir() {
+            bind_mount(&ent_full_path, &target)?;
+        } else {
+            bind_mount(&ent_full_path, &target)?;
+        }
         binds.push(target);
     }
 
