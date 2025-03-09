@@ -331,15 +331,15 @@ fn main() -> Result<()> {
                             out_str.push_str(&format!(" {{\n"));
                             for depend in cfg.depends {
                                 out_str.push_str(&format!(
-                                    "    depends \"{}\"{}",
+                                    "    depends \"{}\"{}\n",
                                     depend.name,
                                     if &depend.version_mask != "" {
                                         format!(
-                                            "{{\n        version_mask {}",
+                                            " version=\"{}\"",
                                             depend.version_mask
                                         )
                                     } else {
-                                        "\n".to_string()
+                                        "".to_string()
                                     }
                                 ));
                             }
