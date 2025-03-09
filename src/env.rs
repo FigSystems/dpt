@@ -55,7 +55,6 @@ pub fn generate_environment_for_package(
             .create(out_path)?;
         if pkgs.iter().filter(|x| x.name == "base").count() > 0 {
             if pkg.name != "base" {
-                log::info!("Generating base...");
                 generate_environment_for_package(
                     &newest_package_from_name("base", &pkgs)?.to_package(),
                     pkgs,

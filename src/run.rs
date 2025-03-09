@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::error;
 use std::{
     fs::hard_link,
     path::{Path, PathBuf},
@@ -252,8 +252,6 @@ pub fn run_multiple_packages(
         pkg_path.join("data").join("fpkg").join("pkg.kdl"),
         &pkg_info_str,
     )?;
-
-    info!("{}", &pkg_info_str);
 
     let installed_packages = get_installed_packages(true)?;
 

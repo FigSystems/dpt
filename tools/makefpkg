@@ -68,8 +68,8 @@ cd "$oldpwd"
 
 function deps_to_string() {
   for x in "${depends[@]}"; do
-    name="$(echo -n "$x" | grep -E -o '^[^>=1-9]+')"
-    version="$(echo -n "$x" | grep -P -o "(?<=$name).*")"
+    name="$(echo -n "$x" | grep -E -o '^[^>=]+')"
+    version="$({ echo -n "$x" | grep -P -o "(?<=$name\\).*"; } || true)"
     echo "depends \"${name}\" $(if [ -n "$version" ]; then echo "version=\"$version\""; fi)"
   done
 }

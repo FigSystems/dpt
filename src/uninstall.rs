@@ -5,7 +5,7 @@ use crate::{
     store::{get_installed_packages, package_to_store_location},
 };
 use anyhow::{anyhow, bail, Result};
-use log::{debug, info};
+use log::info;
 
 #[derive(Debug)]
 pub struct OnlinePackageWithDependCount {
@@ -67,7 +67,6 @@ pub fn get_dependency_count_for_packages(
                     &packages
                 ))?
                 .depends_count += 1;
-            debug!("{} \t::: \t{}", depend.name, package.name);
             ret.get_mut(index)
                 .ok_or(anyhow!(
                     "Failed to get index {} from array {:#?}",
@@ -100,6 +99,8 @@ pub fn uninstall_package_and_deps(package: Option<&Package>) -> Result<()> {
             uninstall_package(&onlinepackage_to_package(&pkg.pkg))?;
         }
     }
-    uninstall_package_and_deps(None)?;
+    if package != None {
+        uninstall_package_and_deps(None)?;
+    }
     Ok(())
 }
