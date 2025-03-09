@@ -192,7 +192,9 @@ pub fn run_pkg(
             if e.is_err() {
                 binds2.push(bind.clone());
             } else {
-                assert!(bind.read_dir()?.next().is_none());
+                if bind.is_dir() {
+                    assert!(bind.read_dir()?.next().is_none());
+                }
             }
         }
         binds = binds2.clone();
