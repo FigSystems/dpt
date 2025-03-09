@@ -398,9 +398,9 @@ fn main() -> Result<()> {
             for pkg in &args[2..] {
                 let packages = get_installed_packages(false)?;
 
-                uninstall_package_and_deps(&friendly_str_to_package(
+                uninstall_package_and_deps(Some(&friendly_str_to_package(
                     &pkg, &packages,
-                )?)?;
+                )?))?;
             }
         }
         cmd => {

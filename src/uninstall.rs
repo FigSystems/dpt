@@ -82,22 +82,13 @@ pub fn get_dependency_count_for_packages(
     Ok(ret)
 }
 
-pub fn uninstall_package_and_deps(package: &Package) -> Result<()> {
+pub fn uninstall_package_and_deps(package: Option<&Package>) -> Result<()> {
     let packages = get_installed_packages(false)?;
-    let mut dep_count = get_dependency_count_for_packages(&packages)?;
-    let this_packages_dependencies =
-        resolve_dependencies_for_package(&packages, package)?;
-    for dep in dep_count.iter_mut() {
-        if this_packages_dependencies.contains(&dep.pkg) {
-            if dep.depends_count > 0 {
-                dep.depends_count -= 1;
-            }
-        }
-    }
+    let dep_count = get_dependency_count_for_packages(&packages)?;
 
     let cloned = package.clone();
     for pkg in dep_count {
-        if onlinepackage_to_package(&pkg.pkg) == cloned {
+        if Some(&onlinepackage_to_package(&pkg.pkg)) == cloned {
             if pkg.depends_count > 0 {
                 bail!("Package is depended upon by these packages: {:#?} Failed to uninstall", pkg.dependers);
             }
@@ -109,5 +100,6 @@ pub fn uninstall_package_and_deps(package: &Package) -> Result<()> {
             uninstall_package(&onlinepackage_to_package(&pkg.pkg))?;
         }
     }
+    uninstall_package_and_deps(None)?;
     Ok(())
 }
