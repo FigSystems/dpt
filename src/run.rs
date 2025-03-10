@@ -4,7 +4,6 @@ use std::{
     fs::hard_link,
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
 
 use anyhow::{anyhow, bail, Result};
 use rand::prelude::*;
