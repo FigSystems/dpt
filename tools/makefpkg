@@ -51,7 +51,11 @@ else
   if [[ -v NO_DEFAULT_PACKAGES ]]; then
     default_package_list=""
   fi
-  fpkg run-multi $default_package_list "${makedepends[@]}" <<EOF
+  custom_cmd=( )
+  if [[ -v CUSTOM_CMD ]]; then
+    custom_cmd=("--cmd" "$CUSTOM_CMD")
+  fi
+  fpkg run-multi $default_package_list "${makedepends[@]}" "${custom_cmd[@]}" <<EOF
 set -e
 set -u
 
