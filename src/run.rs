@@ -206,13 +206,6 @@ pub fn run_pkg(
         for bind in &binds {
             let e = unmount(&bind, UnmountFlags::DETACH);
             if e.is_err() {
-                for p in WalkDir::new(&bind) {
-                    if let Ok(p) = p {
-                        let _ = unmount(&p.path(), UnmountFlags::empty());
-                    }
-                }
-            }
-            if e.is_err() {
                 binds2.push(bind.clone());
             } else {
                 if bind.is_dir() {
