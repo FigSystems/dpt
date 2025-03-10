@@ -10,7 +10,7 @@ exitcode = "1.1.2"
 indicatif = "0.17.11"
 kdl = "6.3.3"
 log = "0.4.25"
-nix = { version = "0.29.0", features = ["process"] }
+nix = { version = "0.29.0", features = ["mount"] }
 pathdiff = "0.2.3"
 pubgrub = "0.3.0"
 rand = "0.9.0"
