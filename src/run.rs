@@ -1,12 +1,14 @@
 use log::error;
+use nix::mount::MsFlags;
 use std::{
     fs::hard_link,
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
 use anyhow::{anyhow, bail, Result};
 use rand::prelude::*;
-use sys_mount::{unmount, Mount, MountFlags, UnmountFlags};
+use sys_mount::{unmount, UnmountFlags};
 
 use crate::{
     env::package_to_env_location,
@@ -44,11 +46,25 @@ pub fn make_path_relative(a: &Path) -> PathBuf {
 }
 
 /// Makes src's contents show up at target
-pub fn mount(
-    src: &Path,
-    target: &Path,
-) -> Result<sys_mount::Mount, std::io::Error> {
-    Mount::builder().flags(MountFlags::BIND).mount(src, target)
+pub fn mount(src: &Path, target: &Path) -> Result<(), std::io::Error> {
+    let mut flags = MsFlags::MS_BIND;
+    flags.insert(MsFlags::MS_REC);
+    nix::mount::mount(
+        Option::<&Path>::Some(src),
+        target,
+        Option::<&Path>::None,
+        flags,
+        Option::<&Path>::None,
+    )?;
+    nix::mount::mount(
+        Option::<&Path>::None,
+        target,
+        Option::<&Path>::None,
+        MsFlags::MS_SLAVE.union(MsFlags::MS_REC),
+        Option::<&Path>::None,
+    )?;
+    // Mount::builder().flags(MountFlags::BIND).mount(src, target)
+    Ok(())
 }
 
 pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
@@ -186,14 +202,25 @@ pub fn run_pkg(
     // binds.push(root_target);
     binds.push(store_target);
 
-    for _ in 0..5 {
+    for _ in 0..10 {
         for bind in &binds {
-            let e = unmount(&bind, UnmountFlags::empty());
+            let e = unmount(&bind, UnmountFlags::DETACH);
+            if e.is_err() {
+                for p in WalkDir::new(&bind) {
+                    if let Ok(p) = p {
+                        let _ = unmount(&p.path(), UnmountFlags::empty());
+                    }
+                }
+            }
             if e.is_err() {
                 binds2.push(bind.clone());
             } else {
                 if bind.is_dir() {
-                    assert!(bind.read_dir()?.next().is_none());
+                    assert!(
+                        bind.read_dir()?.next().is_none(),
+                        "{} is not empty!",
+                        bind.display()
+                    );
                 }
             }
         }
