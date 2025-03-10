@@ -231,6 +231,7 @@ pub fn run_multiple_packages(
     pkgs: &Vec<Package>,
     uid: u32,
     args: Vec<String>,
+    cmd: Option<&str>,
 ) -> Result<i32> {
     if pkgs.is_empty() {
         bail!("No packages specified!");
@@ -284,14 +285,30 @@ pub fn run_multiple_packages(
         version: "1.0.0".to_string(),
     };
 
-    crate::env::generate_environment_for_package(
-        &our_tmp_pkg,
-        &installed_packages,
-        &pkg_path.join("env"),
-        &mut Vec::new(),
-    )?;
+    //crate::env::generate_environment_for_package(
+    //    &our_tmp_pkg,
+    //    &installed_packages,
+    //    &pkg_path.join("env"),
+    //    &mut Vec::new(),
+    //)?;
+    //
+    let mut done_list: Vec<Package> = Vec::new();
 
-    let code = run_pkg(&our_tmp_pkg, uid, args, Some(&pkgs[0].name))?;
+    for pkg in pkgs {
+        crate::env::generate_environment_for_package(
+            pkg,
+            &installed_packages,
+            &pkg_path.join("env"),
+            &mut done_list,
+        )?;
+    }
+
+    let mut cmd = cmd;
+    if cmd == None {
+        cmd = Some(&pkgs[0].name);
+    }
+
+    let code = run_pkg(&our_tmp_pkg, uid, args, cmd)?;
 
     std::fs::remove_dir_all(pkg_path)?;
 

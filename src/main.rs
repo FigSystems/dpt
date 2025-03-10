@@ -9,6 +9,9 @@ mod store;
 mod uninstall;
 
 pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
+pub const PROGRESS_STYLE: &str =
+    "{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})";
+pub const PROGRESS_CHARS: &str = "##-";
 
 use std::{
     io::Read,
@@ -16,6 +19,8 @@ use std::{
     process::exit,
     str::FromStr,
 };
+
+use indicatif::ProgressIterator;
 
 use anyhow::{anyhow, Context, Result};
 use colog::format::CologStyle;
@@ -254,10 +259,23 @@ fn main() -> Result<()> {
             }
             let packages = get_installed_packages(false)?;
             let mut packages_to_run = Vec::<Package>::new();
+            let mut previous_was_cmd = false;
+            let mut cmd: Option<&str> = None;
             for pkg in &args[2..] {
                 if pkg == "--" {
                     break;
                 }
+                if previous_was_cmd {
+                    cmd = Some(pkg);
+                    continue;
+                }
+                if pkg == "--cmd" {
+                    previous_was_cmd = true;
+                    continue;
+                } else {
+                    previous_was_cmd = false;
+                }
+
                 let version = friendly_str_to_package(pkg, &packages)?;
                 packages_to_run.push(version);
             }
@@ -280,24 +298,31 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            exit(run_multiple_packages(&packages_to_run, uid, run_args)?);
+            exit(run_multiple_packages(&packages_to_run, uid, run_args, cmd)?);
         }
         "gen-index" => {
             set_effective_uid(get_current_uid())?;
             let mut out_str = String::new();
 
-            for ent in std::fs::read_dir(".")? {
-                let ent = ent?.path();
-                match ent.extension() {
-                    Some(x) => {
-                        if x.to_str() != Some("fpkg") {
-                            continue;
-                        }
-                    }
-                    _ => {
-                        continue;
-                    }
-                }
+            let fpkgs = std::fs::read_dir(".")?
+                .filter(|x| {
+                    x.is_ok()
+                        && x.as_ref().unwrap().path().extension().is_some()
+                        && x.as_ref()
+                            .unwrap()
+                            .path()
+                            .extension()
+                            .unwrap()
+                            .to_str()
+                            == "fpkg".into()
+                })
+                .map(|x| x.unwrap().path())
+                .collect::<Vec<PathBuf>>();
+            for ent in fpkgs.into_iter().progress().with_style(
+                indicatif::ProgressStyle::default_bar()
+                    .template(PROGRESS_STYLE)?
+                    .progress_chars(PROGRESS_CHARS),
+            ) {
                 let mut pkg = decompress_pkg_read(std::fs::File::open(&ent)?)?;
                 for pkg_ent in pkg.entries()? {
                     let mut pkg_ent = pkg_ent?;

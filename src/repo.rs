@@ -83,10 +83,8 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template(
-                "{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})",
-            )?
-            .progress_chars("##-"),
+            .template(crate::PROGRESS_STYLE)?
+            .progress_chars(crate::PROGRESS_CHARS),
     );
     pb.set_message(format!("{}", url));
 
