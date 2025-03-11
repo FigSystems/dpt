@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::pkg::{get_package_config, Package};
 use crate::repo::OnlinePackage;
@@ -18,7 +18,7 @@ pub fn package_to_store_location(pkg: &Package) -> PathBuf {
 }
 
 /// Gets a list of all packages that are installed in the system.
-pub fn get_installed_packages(include_tmp: bool) -> Result<Vec<OnlinePackage>> {
+pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
     let store = get_store_location();
     let entries = fs::read_dir(store)?;
     let mut packages = Vec::<OnlinePackage>::new();
@@ -30,18 +30,6 @@ pub fn get_installed_packages(include_tmp: bool) -> Result<Vec<OnlinePackage>> {
             .to_str()
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
-
-        if Path::new(&url)
-            .file_name()
-            .ok_or(anyhow!("Path {} is not a valid store path!", &url))?
-            .to_str()
-            .ok_or(anyhow!("Invalid path {}", &url))?
-            .get(0..8)
-            == Some("tmp-env-")
-            && !include_tmp
-        {
-            continue;
-        }
 
         let doc = &fs::read_to_string(path.join("data/fpkg/pkg.kdl"))?;
         let pkg_config = get_package_config(&doc)?;

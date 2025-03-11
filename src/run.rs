@@ -1,4 +1,4 @@
-use log::error;
+use log::{debug, error};
 use nix::mount::MsFlags;
 use std::{
     fs::hard_link,
@@ -21,6 +21,13 @@ pub fn get_run_location() -> PathBuf {
     match crate::config::get_config_option(&"run".to_string()) {
         Some(x) => PathBuf::from(x),
         None => PathBuf::from("/fpkg/run/"),
+    }
+}
+
+pub fn get_tmp_location() -> PathBuf {
+    match crate::config::get_config_option(&"tmp".to_string()) {
+        Some(x) => PathBuf::from(x),
+        None => PathBuf::from("/fpkg/tmp"),
     }
 }
 
@@ -87,6 +94,32 @@ pub fn run_pkg(
     args: Vec<String>,
     cmd: Option<&str>,
 ) -> Result<i32> {
+    let env_dir = package_to_env_location(pkg)?;
+    if !env_dir.is_dir() {
+        bail!(
+            "Package {}-{} does not have an environment!",
+            pkg.name,
+            pkg.version
+        );
+    }
+    let pkg_store_dir = package_to_store_location(pkg);
+    if !pkg_store_dir.is_dir() {
+        bail!("Package {}-{} not found!", pkg.name, pkg.version);
+    }
+    let cmd = match cmd {
+        Some(x) => x,
+        None => &pkg.name.clone(),
+    };
+
+    run_pkg_(&env_dir, uid, args, cmd)
+}
+
+pub fn run_pkg_(
+    env_dir: &Path,
+    uid: u32,
+    args: Vec<String>,
+    cmd: &str,
+) -> Result<i32> {
     let mut out_dir = PathBuf::from("/");
     while out_dir.exists() || out_dir == PathBuf::from("/") {
         out_dir = get_run_location().join(get_random_string(10));
@@ -96,29 +129,10 @@ pub fn run_pkg(
         .create(&out_dir)?;
 
     let store_dir = get_store_location();
-    let pkg_store_dir = package_to_store_location(pkg);
-    if !pkg_store_dir.is_dir() {
-        bail!("Package {}-{} not found!", pkg.name, pkg.version);
-    }
-
-    let env_dir = package_to_env_location(pkg)?;
-
-    if !env_dir.is_dir() {
-        bail!(
-            "Package {}-{} does not have an environment!",
-            pkg.name,
-            pkg.version
-        );
-    }
 
     // Bind mount fpkg store inside the out_dir
     let store_target = join_proper(&out_dir, &store_dir)?;
     bind_mount(&store_dir, &store_target)?;
-
-    //// Bind mount previous root directory
-    //let root = PathBuf::from("/");
-    //let root_target = join_proper(&out_dir, Path::new("fpkg-root"))?;
-    //bind_mount(&root, &root_target)?;
 
     let mut binds = Vec::<PathBuf>::new();
 
@@ -147,8 +161,9 @@ pub fn run_pkg(
         binds.push(target);
     }
 
-    for bind in vec!["dev", "mnt", "media", "run", "var", "home", "tmp", "proc"]
-    {
+    for bind in vec![
+        "dev", "mnt", "media", "run", "var", "home", "tmp", "proc", "tmp",
+    ] {
         let dir = Path::new("/").join(bind);
         let dir_target = out_dir.join(bind);
         if dir_target.exists() {
@@ -164,10 +179,6 @@ pub fn run_pkg(
     let mut cleanup = false;
 
     let mut prefix = "/";
-    let cmd = match cmd {
-        Some(x) => x,
-        None => &pkg.name.clone(),
-    };
     if out_dir.join("bin").join(&cmd).is_file()
         || out_dir.join("bin").join(&cmd).is_symlink()
     {
@@ -199,7 +210,6 @@ pub fn run_pkg(
 
     let mut binds2: Vec<PathBuf> = Vec::new();
     let mut binds = binds;
-    // binds.push(root_target);
     binds.push(store_target);
 
     for _ in 0..10 {
@@ -209,11 +219,16 @@ pub fn run_pkg(
                 binds2.push(bind.clone());
             } else {
                 if bind.is_dir() {
-                    assert!(
-                        bind.read_dir()?.next().is_none(),
-                        "{} is not empty!",
-                        bind.display()
-                    );
+                    if bind.read_dir()?.next().is_some() {
+                        for p in walkdir::WalkDir::new(&bind) {
+                            if let Ok(p) = p {
+                                let _ =
+                                    unmount(&p.path(), UnmountFlags::empty());
+                            }
+                        }
+
+                        binds2.push(bind.clone());
+                    }
                 }
             }
         }
@@ -238,14 +253,14 @@ pub fn run_multiple_packages(
         bail!("No packages specified!");
     }
     let mut pkg_path = format!("tmp-env-{}", get_random_string(10));
-    while get_store_location()
+    while get_tmp_location()
         .join(pkg_path.clone() + "-1.0.0")
         .exists()
     {
         pkg_path = format!("tmp-env-{}", get_random_string(10));
     }
     let pkg_path_name = PathBuf::from(pkg_path.clone());
-    let pkg_path = get_store_location().join(pkg_path + "-1.0.0"); // Make immutable
+    let pkg_path = get_tmp_location().join(pkg_path + "-1.0.0"); // Make immutable
     std::fs::DirBuilder::new()
         .recursive(true)
         .create(&pkg_path)?;
@@ -276,40 +291,29 @@ pub fn run_multiple_packages(
         &pkg_info_str,
     )?;
 
-    let installed_packages = get_installed_packages(true)?;
+    let installed_packages = get_installed_packages()?;
 
-    let our_tmp_pkg = Package {
-        name: pkg_path_name
-            .to_str()
-            .ok_or(anyhow!("Failed to convert path into string!"))?
-            .to_string(),
-        version: "1.0.0".to_string(),
-    };
-
-    //crate::env::generate_environment_for_package(
-    //    &our_tmp_pkg,
-    //    &installed_packages,
-    //    &pkg_path.join("env"),
-    //    &mut Vec::new(),
-    //)?;
-    //
     let mut done_list: Vec<Package> = Vec::new();
 
     for pkg in pkgs {
         crate::env::generate_environment_for_package(
             pkg,
             &installed_packages,
-            &pkg_path.join("env"),
+            &pkg_path,
             &mut done_list,
         )?;
     }
 
-    let mut cmd = cmd;
-    if cmd == None {
-        cmd = Some(&pkgs[0].name);
-    }
+    let cmd = cmd.unwrap_or(&pkgs[0].name);
 
-    let code = run_pkg(&our_tmp_pkg, uid, args, cmd)?;
+    debug!(
+        "run_pkg_({}, {}, {:?}, {})",
+        pkg_path.display(),
+        uid,
+        args,
+        cmd
+    );
+    let code = run_pkg_(&pkg_path, uid, args, cmd)?;
 
     std::fs::remove_dir_all(pkg_path)?;
 

@@ -82,7 +82,7 @@ pub fn get_dependency_count_for_packages(
 }
 
 pub fn uninstall_package_and_deps(package: Option<&Package>) -> Result<()> {
-    let packages = get_installed_packages(false)?;
+    let packages = get_installed_packages()?;
     let dep_count = get_dependency_count_for_packages(&packages)?;
 
     let cloned = package.clone();
