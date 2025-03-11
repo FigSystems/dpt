@@ -1,6 +1,6 @@
 # Introduction
 
-This document outlines the fpkg method of distributing software. This document stresses the points of
+This document outlines the fpkg method of distributing software. Fpkg is centered around the points of
 
 - Reproducibility: I should be able to give my package to a friend and it should work exactly the same as it did on my system.
 
