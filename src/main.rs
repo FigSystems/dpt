@@ -66,6 +66,7 @@ fn main() -> Result<()> {
         builder.filter(None, log::LevelFilter::Info);
     }
     builder.filter(Some("pubgrub"), log::LevelFilter::Warn);
+    builder.filter(Some("reqwest"), log::LevelFilter::Warn);
     builder.init();
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
