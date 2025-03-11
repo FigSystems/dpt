@@ -147,7 +147,8 @@ pub fn run_pkg(
         binds.push(target);
     }
 
-    for bind in vec!["dev", "mnt", "media", "run", "var", "home", "tmp"] {
+    for bind in vec!["dev", "mnt", "media", "run", "var", "home", "tmp", "proc"]
+    {
         let dir = Path::new("/").join(bind);
         let dir_target = out_dir.join(bind);
         if dir_target.exists() {
