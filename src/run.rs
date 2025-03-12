@@ -252,6 +252,11 @@ pub fn run_multiple_packages(
     if pkgs.is_empty() {
         bail!("No packages specified!");
     }
+
+    if pkgs.len() == 1 {
+        return run_pkg(&pkgs[0], uid, args, cmd);
+    }
+
     let mut pkg_path = format!("tmp-env-{}", get_random_string(10));
     while get_tmp_location()
         .join(pkg_path.clone() + "-1.0.0")
