@@ -268,7 +268,7 @@ fn main() -> Result<()> {
                     cmd = Some(pkg);
                     continue;
                 }
-                if pkg == "--cmd" {
+                if pkg == "--cmd" || pkg == "-c" {
                     previous_was_cmd = true;
                     continue;
                 } else {
