@@ -443,7 +443,13 @@ fn friendly_str_to_package(
     pkgs: &Vec<OnlinePackage>,
 ) -> Result<Package> {
     let pkg = match string_to_package(arg) {
-        Ok(x) => x,
+        Ok(x) => {
+            if package_to_onlinepackage(&x, pkgs).is_ok() {
+                x
+            } else {
+                onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?)
+            }
+        }
         Err(_) => {
             onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?)
         }
