@@ -355,8 +355,9 @@ pub fn install_pkg_and_dependencies(
     pkgs: &Vec<OnlinePackage>,
     done_list: &mut Vec<OnlinePackage>,
     top_level: bool,
+    reinstall: bool,
 ) -> Result<()> {
-    install_pkg(pkg, false)?;
+    install_pkg(pkg, reinstall)?;
     if top_level {
         mark_as_manually_installed(&onlinepackage_to_package(pkg))?;
     }
@@ -370,7 +371,7 @@ pub fn install_pkg_and_dependencies(
         if done_list.contains(&depends) {
             continue;
         }
-        install_pkg_and_dependencies(&depends, pkgs, done_list, false)?;
+        install_pkg_and_dependencies(&depends, pkgs, done_list, false, false)?;
         done_list.push(depends);
     }
 
