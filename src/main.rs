@@ -282,7 +282,8 @@ fn main() -> Result<()> {
                     previous_was_cmd = false;
                 }
 
-                let version = friendly_str_to_package(pkg, &packages)?;
+                let version = friendly_str_to_package(pkg, &packages)
+                    .context(anyhow!("Package `{}` not found!", pkg))?;
                 packages_to_run.push(version);
             }
             let uid = get_current_uid();
