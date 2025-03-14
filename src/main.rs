@@ -194,7 +194,13 @@ fn main() -> Result<()> {
                 }
             };
 
+            let mut reinstall = false;
+
             for pkg in &args[2..] {
+                if pkg == "--reinstall" {
+                    reinstall = true;
+                    continue;
+                }
                 let version = match friendly_str_to_package(pkg, &packages) {
                     Ok(x) => x,
                     Err(e) => {
@@ -215,6 +221,7 @@ fn main() -> Result<()> {
                     &packages,
                     &mut done_list,
                     true,
+                    reinstall,
                 )?;
 
                 let pkgs = get_installed_packages()?;
