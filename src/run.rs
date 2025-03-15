@@ -1,11 +1,11 @@
-use log::{debug, error};
+use log::error;
 use nix::mount::MsFlags;
 use std::{
     fs::hard_link,
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rand::prelude::*;
 use sys_mount::{unmount, UnmountFlags};
 
@@ -190,11 +190,13 @@ pub fn run_pkg_(
     {
         prefix = "/usr/bin";
     } else {
-        error!("Warning! No executable found!");
+        error!("No executable found!");
         cleanup = true;
     }
     let mut code: i32 = 0;
     if !cleanup {
+        ctrlc::set_handler(|| {})
+            .context("Failed to register ctrlc singal handler")?;
         code = std::process::Command::new(std::env::current_exe()?)
             .arg("chroot-not-intended-for-interactive-use")
             .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
@@ -313,13 +315,6 @@ pub fn run_multiple_packages(
 
     let cmd = cmd.unwrap_or(&pkgs[0].name);
 
-    debug!(
-        "run_pkg_({}, {}, {:?}, {})",
-        pkg_path.display(),
-        uid,
-        args,
-        cmd
-    );
     let code = run_pkg_(&pkg_path, uid, args, cmd)?;
 
     std::fs::remove_dir_all(pkg_path)?;
