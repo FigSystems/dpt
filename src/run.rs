@@ -151,14 +151,16 @@ pub fn run_pkg_(
         let target = join_proper(&out_dir, ent_relative_path)?;
         if ent_full_path.is_file() {
             bind_mount(&ent_full_path, &target)?;
+            binds.push(target);
         } else if ent_full_path.is_symlink() {
             hard_link(&ent_full_path, &target)?;
         } else if ent_full_path.is_dir() {
             bind_mount(&ent_full_path, &target)?;
+            binds.push(target);
         } else {
             bind_mount(&ent_full_path, &target)?;
+            binds.push(target);
         }
-        binds.push(target);
     }
 
     for bind in vec![
