@@ -48,6 +48,11 @@ impl OnlinePackage {
     }
 }
 
+pub enum InstallResult {
+    Installed,
+    Ignored,
+}
+
 /// Returns a list of repository's URLs
 pub fn get_repositories() -> Result<Vec<String>> {
     let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");
@@ -324,7 +329,10 @@ pub fn resolve_dependencies_for_package(
 }
 
 /// Install a single package into the pool. Does NOT handle dependencies
-pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
+pub fn install_pkg(
+    pkg: &OnlinePackage,
+    reinstall: bool,
+) -> Result<InstallResult> {
     let store = get_store_location();
     if !store.is_dir() {
         DirBuilder::new().recursive(true).create(&store)?;
@@ -336,7 +344,7 @@ pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
         if reinstall {
             std::fs::remove_dir_all(&out_path)?;
         } else {
-            return Ok(out_path);
+            return Ok(InstallResult::Ignored);
         }
     }
 
@@ -346,33 +354,37 @@ pub fn install_pkg(pkg: &OnlinePackage, reinstall: bool) -> Result<PathBuf> {
 
     archive.unpack(&out_path.join("data"))?;
 
-    Ok(out_path)
+    Ok(InstallResult::Installed)
 }
 
 /// Install a package and all of it's dependencies into the pool
 pub fn install_pkg_and_dependencies(
     pkg: &OnlinePackage,
     pkgs: &Vec<OnlinePackage>,
-    done_list: &mut Vec<OnlinePackage>,
+    done_list: &mut Vec<(OnlinePackage, InstallResult)>,
     top_level: bool,
     reinstall: bool,
 ) -> Result<()> {
-    install_pkg(pkg, reinstall)?;
+    let ires = install_pkg(pkg, reinstall)?;
     if top_level {
         mark_as_manually_installed(&onlinepackage_to_package(pkg))?;
     }
-    done_list.push(pkg.clone());
+    done_list.push((pkg.clone(), ires));
     let dependencies = resolve_dependencies_for_package(
         &pkgs,
         &onlinepackage_to_package(pkg),
     )?;
 
     for depends in dependencies {
-        if done_list.contains(&depends) {
+        if done_list
+            .iter()
+            .map(|x| &x.0)
+            .collect::<Vec<&OnlinePackage>>()
+            .contains(&&depends)
+        {
             continue;
         }
         install_pkg_and_dependencies(&depends, pkgs, done_list, false, false)?;
-        done_list.push(depends);
     }
 
     Ok(())

@@ -32,7 +32,7 @@ use pkg::{
 };
 use repo::{
     install_pkg_and_dependencies, newest_package_from_name,
-    package_to_onlinepackage, OnlinePackage,
+    package_to_onlinepackage, InstallResult, OnlinePackage,
 };
 use run::run_multiple_packages;
 use store::get_installed_packages;
@@ -128,6 +128,7 @@ fn main() -> Result<()> {
                 error!("{}", e);
                 exit(1);
             }
+            done();
         }
         "build-env" => {
             command_requires_root_uid();
@@ -150,35 +151,23 @@ fn main() -> Result<()> {
                     &mut Vec::new(),
                 )?;
             }
+            done();
         }
         "list" => {
             set_effective_uid(get_current_uid())?;
-            let mut message = String::new();
-            match repo::get_all_available_packages() {
-                Ok(x) => {
-                    for pkg in x {
-                        // info!("{}", pkg);
-                        message.push_str(&format!(
-                            "\n{}-{}",
-                            pkg.name, pkg.version
-                        ));
-                    }
-                    info!("{}\n", message);
-                }
-                Err(e) => {
-                    error!("{}", e);
-                    exit(exitcode::UNAVAILABLE)
-                }
+            let packages = repo::get_all_available_packages().context(
+                "Failed to get a list of packages from the repository(s)",
+            )?;
+            for pkg in packages {
+                println!("{}-{}", pkg.name, pkg.version);
             }
         }
         "list-installed" => {
             command_requires_root_uid();
-            let mut message = String::new();
             let packages = store::get_installed_packages()?;
             for pkg in packages {
-                message.push_str(&format!("\n{}-{}", pkg.name, pkg.version));
+                println!("{}-{}", pkg.name, pkg.version);
             }
-            info!("{}\n", message);
         }
         "install" | "add" => {
             command_requires_root_uid();
@@ -214,7 +203,8 @@ fn main() -> Result<()> {
                 };
                 let version = package_to_onlinepackage(&version, &packages)?;
 
-                let mut done_list = Vec::<OnlinePackage>::new();
+                let mut done_list =
+                    Vec::<(OnlinePackage, InstallResult)>::new();
 
                 install_pkg_and_dependencies(
                     &version,
@@ -226,7 +216,7 @@ fn main() -> Result<()> {
 
                 let pkgs = get_installed_packages()?;
 
-                for done in done_list {
+                for done in done_list.iter().map(|x| &x.0) {
                     generate_environment_for_package(
                         &onlinepackage_to_package(&done),
                         &pkgs,
@@ -237,6 +227,7 @@ fn main() -> Result<()> {
                     )?;
                 }
             }
+            done();
         }
         "run" => {
             if argc < 3 {
@@ -382,6 +373,7 @@ fn main() -> Result<()> {
             }
 
             print!("{}", &out_str);
+            done();
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
@@ -434,6 +426,7 @@ fn main() -> Result<()> {
                     &pkg, &packages,
                 )?))?;
             }
+            done();
         }
         cmd => {
             error!("Unknown command {}!", cmd);
@@ -442,8 +435,11 @@ fn main() -> Result<()> {
         }
     }
 
-    info!("Done!");
     Ok(())
+}
+
+fn done() {
+    info!("Done!");
 }
 
 fn friendly_str_to_package(
