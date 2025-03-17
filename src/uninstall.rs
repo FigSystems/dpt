@@ -46,15 +46,17 @@ pub fn get_dependency_count_for_packages(
     }
 
     for package in &packages {
-        let dependencies = resolve_dependencies_for_package(
+        let mut dependencies = resolve_dependencies_for_package(
             &packages,
             &onlinepackage_to_package(&package),
         )?;
 
+        dependencies
+            .retain(|x| x.name != package.name || x.version != package.version);
+
+        let dependencies = dependencies;
+
         for depend in dependencies {
-            if &depend == package {
-                continue;
-            }
             let index =
                 packages.iter().position(|x| x == &depend).ok_or(anyhow!(
                 "Failed to find package in dependencies returned by resolve"
