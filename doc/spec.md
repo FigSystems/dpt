@@ -12,7 +12,7 @@ Stability is another important topic. Any package manager should be stable, and 
 
 There are a bunch of terms and ideas used in this document:
 
-- FPKG store: The directory containing all of the packages installed in the system, located by default at `/fpkg/store` but this can be customized by placing a directory name in the file `/etc/fpkg/store`.
+- fpkg store: The directory containing all of the packages installed in the system, located by default at `/fpkg/store` but this can be customized by placing a directory name in the file `/etc/fpkg/store`.
 
 - Package: A single package, often located in an fpkg store. The is a directory containing the sub-directories of `data`, `env`, and `info`.
 
@@ -113,13 +113,9 @@ example-1.2.3
               └── example.txt
 ```
 
-
-
 Most fpkgs are distributed as .fpkg files. A .fpkg file is just a zstd compressed tar archive containing the fpkg.
 
-
 ## Generating packages
-
 
 The process of generating packages requires writing a description file, installing the program to a directory, and then running fpkg gen-pkg [directory]. An example package description file:
 
@@ -171,26 +167,24 @@ depends ...
 
 The list of repositories is stored in `/etc/fpkg/repos` in the format of
 
-``` https://pkg.repo/fpkg https://another.repo ```
+```
+https://pkg.repo/fpkg
+https://another.repo
+```
 
 The repository's priorities decrease down the file i.e. The first repository has more priority then the second, and the second has more priority then the third etc.
 
-
 # Dependency resolving
-
 
 For dependency resolving, fpkg uses [PubGrub](https://crates.io/crates/pubgrub) due to it’s efficient and accurate dependency resolution.
 
-
 # Package running
-
 
 When running a package, fpkg will bind mount the fpkg store directory into a temporary directory, and then symlink all of the root level directories from the package into that temporary directory.
 
 Then fpkg chroots into that environment and runs the command matching the package name, or, if that is not a available, panics. There are some directories which will be bind mounted from the host filesystem instead of from a package's environment. The directories are
 
-
--  `/home`: Users files
+- `/home`: Users files
 
 - `/dev`: Device files
 
@@ -213,13 +207,11 @@ _Example_
 
 /fpkg/run/ad3GH4
 ├── fpkg
-│   ├── env -> /fpkg/env
 │   └── pool -> /fpkg/pool
-├── fpkg-root -> /
 ├── usr -> /fpkg/env/my-pkg-3.5.11/usr
 ├── bin -> /fpkg/env/my-pkg-3.5.11/bin
 ├── ... (Package files)
-├── home -> /fpkg-root/home
-├── dev -> /fpkg-root/dev
+├── home -> /home
+├── dev -> /dev
 └── ... (System files)
 ```
