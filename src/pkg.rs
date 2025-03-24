@@ -20,6 +20,12 @@ pub struct Package {
     pub version: String,
 }
 
+impl Package {
+    pub fn new(name: String, version: String) -> Package {
+        Package { name, version }
+    }
+}
+
 impl Display for Package {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Package: {} {}", self.name, self.version)

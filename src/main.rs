@@ -27,7 +27,7 @@ use indicatif::ProgressIterator;
 use anyhow::{anyhow, Context, Result};
 use colog::format::CologStyle;
 use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
-use log::{error, info, warn, Level};
+use log::{error, warn, Level};
 use pkg::{
     decompress_pkg_read, get_package_config, string_to_package, Package,
 };

@@ -32,7 +32,7 @@ pub fn parse_fpkg_file(file: &KdlDocument) -> Result<FpkgFile> {
             .as_string()
             .ok_or(anyhow!("Version field of package is not a string!"))?
             .to_owned();
-        packages.push(Package { name, version });
+        packages.push(Package::new(name, version));
     }
 
     Ok(FpkgFile { packages })
@@ -56,4 +56,34 @@ pub fn read_fpkg_lock_file() -> Result<FpkgFile> {
     parse_fpkg_file(&parse_kdl(&std::fs::read_to_string(
         get_fpkg_lock_location(),
     )?)?)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn package_array() {
+        let doc: KdlDocument = r#"
+packages {
+    gcc
+    binutils
+    fish "4.0.0"
+    yazi
+}
+        "#
+        .parse()
+        .expect("Failed to parse KDL!");
+
+        let out = parse_fpkg_file(&doc).unwrap();
+        assert_eq!(
+            out.packages,
+            vec![
+                Package::new("gcc".into(), "".into()),
+                Package::new("binutils".into(), "".into()),
+                Package::new("fish".into(), "4.0.0".into()),
+                Package::new("yazi".into(), "".into())
+            ]
+        )
+    }
 }
