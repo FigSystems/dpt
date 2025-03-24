@@ -10,22 +10,13 @@ use log::warn;
 use walkdir::WalkDir;
 
 use crate::{
-    pkg::{onlinepackage_to_package, Package},
+    pkg::Package,
     repo::{
-        newest_package_from_name, package_to_onlinepackage,
-        resolve_dependencies_for_package, OnlinePackage,
+        package_to_onlinepackage, resolve_dependencies_for_package,
+        OnlinePackage,
     },
-    run::join_proper,
-    store::get_store_location,
+    store::get_fpkg_dir,
 };
-
-pub fn package_to_env_location(pkg: &Package) -> Result<PathBuf> {
-    Ok(join_proper(
-        &get_store_location(),
-        &Path::new(&format!("{}-{}", pkg.name, pkg.version)),
-    )?
-    .join("env"))
-}
 
 /// Generates the environment for a package, version solving to find dependencies.
 pub fn generate_environment_for_package(
@@ -36,8 +27,7 @@ pub fn generate_environment_for_package(
 ) -> Result<()> {
     let package = package_to_onlinepackage(pkg, pkgs)?;
     let pkg_dir = PathBuf::from_str(&package.url)?;
-    let pkg_data_dir = pkg_dir.clone().join("data");
-    // let pkg_env_dir = pkg_dir.clone().join("env");
+    let pkg_data_dir = pkg_dir;
 
     pkg_data_dir.metadata().context(format!(
         "Package directory '{}' does not exist!",
@@ -53,20 +43,43 @@ pub fn generate_environment_for_package(
         std::fs::DirBuilder::new()
             .recursive(true)
             .create(out_path)?;
-        if pkgs.iter().filter(|x| x.name == "base").count() > 0 {
-            if pkg.name != "base" {
-                generate_environment_for_package(
-                    &newest_package_from_name("base", &pkgs)?.to_package(),
-                    pkgs,
-                    out_path,
-                    done_list,
-                )?;
-            }
+        if get_fpkg_dir().join("base").is_dir() {
+            generate_environment_for_directory(
+                &get_fpkg_dir().join("base"),
+                &out_path,
+            )?;
         } else {
-            warn!("`base` package is not found!");
+            warn!("`base` is not found!");
         }
     }
 
+    generate_environment_for_directory(&pkg_data_dir, &out_path)?;
+
+    done_list.push(pkg.clone());
+
+    // Convert dependencies into packages by version solving
+    let dependencies = resolve_dependencies_for_package(&pkgs, pkg)
+        .context(anyhow!("Failed to resolve dependencies"))?;
+
+    for dependency in dependencies {
+        if done_list.contains(&dependency.clone().to_package()) {
+            continue;
+        }
+        let p = Package {
+            name: dependency.name,
+            version: dependency.version,
+        };
+        generate_environment_for_package(&p, pkgs, out_path, done_list)?;
+        done_list.push(p);
+    }
+
+    Ok(())
+}
+
+pub fn generate_environment_for_directory(
+    pkg_data_dir: &Path,
+    out_path: &Path,
+) -> Result<()> {
     for ent in WalkDir::new(&pkg_data_dir)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -96,24 +109,6 @@ pub fn generate_environment_for_package(
                 fs::DirBuilder::new().recursive(true).create(&target_path)?;
             }
         }
-    }
-
-    done_list.push(pkg.clone());
-
-    // Convert dependencies into packages by version solving
-    let dependencies = resolve_dependencies_for_package(&pkgs, pkg)
-        .context(anyhow!("Failed to resolve dependencies"))?;
-
-    for dependency in dependencies {
-        if done_list.contains(&onlinepackage_to_package(&dependency)) {
-            continue;
-        }
-        let p = Package {
-            name: dependency.name,
-            version: dependency.version,
-        };
-        generate_environment_for_package(&p, pkgs, out_path, done_list)?;
-        done_list.push(p);
     }
 
     Ok(())

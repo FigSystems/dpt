@@ -8,9 +8,7 @@ use std::{
 };
 use tar::Archive;
 
-use crate::repo::OnlinePackage;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq)]
 pub struct Dependency {
     pub name: String,
     pub version_mask: String,
@@ -235,14 +233,6 @@ pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
         }
     }
     Ok(depends)
-}
-
-/// Downgrade an OnlinePackage to Package
-pub fn onlinepackage_to_package(pkg: &OnlinePackage) -> Package {
-    Package {
-        name: pkg.name.clone(),
-        version: pkg.version.clone(),
-    }
 }
 
 /// Parses the name and version from a string.
