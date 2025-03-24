@@ -7,8 +7,10 @@ mod repo;
 mod run;
 mod store;
 
-pub const PROGRESS_STYLE: &str =
+pub const PROGRESS_STYLE_BYTES: &str =
     "{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})";
+pub const PROGRESS_STYLE: &str =
+    "{msg} [{wide_bar:.green/blue}] {human_pos}/{human_len} ({eta})";
 pub const PROGRESS_CHARS: &str = "##-";
 
 use std::{
