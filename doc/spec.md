@@ -182,6 +182,30 @@ When running a package, fpkg will bind `/home`, `/dev`, `/mnt`, `/media`, `/run`
 
 # Fpkg system configuration
 
-The fpkg system configuration file is located at `${fpkg_directory}/fpkg.kdl` and is composed of a key-value KDL document. When `fpkg rebuild` is run, an `fpkg.lock` file is created in the same directory, containing computed information that was computed from `fpkg.kdl`. This lock file includes information such as package versions, enabled services, `base` files, etc. `${fpkg_directory}/fpkg.kdl` has the following fields:
+The fpkg system configuration file is located at `${fpkg_directory}/fpkg.kdl` and is composed of a key-value KDL document. All generated files from this configuration will be added to the `${fpkg_directory}/base` directory. When `fpkg rebuild` is run, an `fpkg.lock` file is created in the same directory, containing computed information that was computed from `fpkg.kdl`. This lock file includes generated information such as package versions, enabled services, `base` files, etc. `${fpkg_directory}/fpkg.kdl` has the following fields:
 
 - `packages` An array of packages. Each child's node name is the package name and the next argument, if it exists, will be the version.
+
+- `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The entries (sub nodes) are in the format of
+  
+  ```kdl
+  username \
+      "Hashed password" \
+      uid \
+      gid \
+      "Full Name (GECOS)" \
+      "/home/directory" \
+      "/usr/bin/my-fave-shell"
+  ```
+
+- `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The entries (sub nodes) are in the format of
+  
+  ```kdl
+  groupname gid {
+      member1
+      member2
+      ...
+  }
+  ```
+
+- 
