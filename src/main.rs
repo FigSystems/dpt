@@ -123,7 +123,6 @@ fn main() -> Result<()> {
                 error!("{}", e);
                 exit(1);
             }
-            done();
         }
         "rebuild" => {
             command_requires_root_uid();
@@ -312,7 +311,6 @@ fn main() -> Result<()> {
             }
 
             print!("{}", &out_str);
-            done();
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
@@ -359,10 +357,6 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn done() {
-    info!("Done!");
 }
 
 fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(mut l: Vec<T>) -> Vec<T> {
