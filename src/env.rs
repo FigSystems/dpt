@@ -27,7 +27,7 @@ pub fn generate_environment_for_package(
 ) -> Result<()> {
     let package = package_to_onlinepackage(pkg, pkgs)?;
     let pkg_dir = PathBuf::from_str(&package.url)?;
-    let pkg_data_dir = pkg_dir.clone().join("data");
+    let pkg_data_dir = pkg_dir;
 
     pkg_data_dir.metadata().context(format!(
         "Package directory '{}' does not exist!",

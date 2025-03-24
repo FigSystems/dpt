@@ -347,7 +347,7 @@ pub fn install_pkg(
 
     let mut archive = pkg::decompress_pkg_read(&file[..])?;
 
-    archive.unpack(&out_path.join("data"))?;
+    archive.unpack(&out_path)?;
 
     Ok(InstallResult::Installed)
 }

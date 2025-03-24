@@ -35,7 +35,7 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
 
-        let doc = fs::read_to_string(path.join("data/fpkg/pkg.kdl"));
+        let doc = fs::read_to_string(path.join("fpkg/pkg.kdl"));
         if let Err(_) = doc {
             log::warn!(
                 "Failed to read the configuration file for package {}!",

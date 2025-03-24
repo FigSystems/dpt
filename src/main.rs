@@ -124,6 +124,7 @@ fn main() -> Result<()> {
             done();
         }
         "rebuild" => {
+            command_requires_root_uid();
             let fpkg = read_fpkg_file()?;
             let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
             let repo_packages = get_all_available_packages()?;
