@@ -1,3 +1,4 @@
+mod base;
 mod config;
 mod env;
 mod fpkg_file;
@@ -21,6 +22,7 @@ use std::{
     str::FromStr,
 };
 
+use base::rebuild_base;
 use fpkg_file::read_fpkg_file;
 use indicatif::ProgressIterator;
 
@@ -130,7 +132,7 @@ fn main() -> Result<()> {
             let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
             let repo_packages = get_all_available_packages()?;
 
-            for package in fpkg.packages {
+            for package in fpkg.packages.iter() {
                 install_pkg_and_dependencies(
                     &newest_package_from_name(&package.name, &repo_packages)
                         .context(anyhow!(
@@ -142,6 +144,8 @@ fn main() -> Result<()> {
                     false,
                 )?;
             }
+
+            rebuild_base(&fpkg).context("Failed to build base!")?;
 
             let mut fpkg_lock = KdlDocument::new();
 
