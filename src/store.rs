@@ -1,27 +1,31 @@
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
+use crate::fpkg_file::read_fpkg_lock_file;
 use crate::pkg::{get_package_config, Package};
 use crate::repo::OnlinePackage;
 use anyhow::{anyhow, Result};
 
-pub fn get_store_location() -> PathBuf {
-    match crate::config::get_config_option(&"store".to_string()) {
-        Some(x) => PathBuf::from(x),
-        None => PathBuf::from("/fpkg/store"),
+pub fn get_fpkg_dir() -> PathBuf {
+    if let Ok(x) = fs::read_to_string("/etc/fpkg/dir") {
+        PathBuf::from_str(&x)
+            .expect("Malformed directory path in `/etc/fpkg/dir`!")
+    } else {
+        PathBuf::from_str("/fpkg").unwrap()
     }
 }
 
-/// Gets the pool location for a package.
-pub fn package_to_store_location(pkg: &Package) -> PathBuf {
-    get_store_location().join(pkg.name.clone() + "-" + &pkg.version)
+pub fn get_store_location() -> PathBuf {
+    get_fpkg_dir().join("store")
 }
 
-/// Gets a list of all packages that are installed in the system.
+/// Gets a list of all packages that are installed and in the fpkg configuration.
 pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
     let store = get_store_location();
     let entries = fs::read_dir(store)?;
     let mut packages = Vec::<OnlinePackage>::new();
+    let fpkg = read_fpkg_lock_file()?;
 
     for ent in entries {
         let path = ent?.path();
@@ -31,8 +35,32 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
 
-        let doc = &fs::read_to_string(path.join("data/fpkg/pkg.kdl"))?;
-        let pkg_config = get_package_config(&doc)?;
+        let doc = fs::read_to_string(path.join("data/fpkg/pkg.kdl"));
+        if let Err(_) = doc {
+            log::warn!(
+                "Failed to read the configuration file for package {}!",
+                path.display()
+            );
+            continue;
+        }
+        let doc = doc.unwrap();
+
+        let pkg_config = get_package_config(&doc);
+        if let Err(_) = pkg_config {
+            log::warn!(
+                "Malformed package config for package {}!",
+                path.display()
+            );
+            continue;
+        }
+        let pkg_config = pkg_config.unwrap();
+
+        if !fpkg.packages.contains(&Package {
+            name: pkg_config.name.clone(),
+            version: pkg_config.version.clone(),
+        }) {
+            continue;
+        }
 
         packages.push(OnlinePackage {
             name: pkg_config.name,

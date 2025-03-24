@@ -94,7 +94,7 @@ example-1.2.3
               └── example.txt
 ```
 
-Most fpkgs are distributed as .fpkg files. A .fpkg file is just a zstd compressed tar archive containing the fpkg.
+Most fpkgs are distributed as `.fpkg` files. A `.fpkg` file is just a zstd compressed tar archive containing the fpkg.
 
 ## Generating packages
 
@@ -184,4 +184,4 @@ When running a package, fpkg will bind `/home`, `/dev`, `/mnt`, `/media`, `/run`
 
 The fpkg system configuration file is located at `${fpkg_directory}/fpkg.kdl` and is composed of a key-value KDL document. When `fpkg rebuild` is run, an `fpkg.lock` file is created in the same directory, containing computed information that was computed from `fpkg.kdl`. This lock file includes information such as package versions, enabled services, `base` files, etc. `${fpkg_directory}/fpkg.kdl` has the following fields:
 
-- `packages` A dash array of packages.
+- `packages` An array of packages. Each child's node name is the package name and the next argument, if it exists, will be the version.

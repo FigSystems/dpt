@@ -1,11 +1,8 @@
-use std::path::Path;
-
-use crate::CONFIG_LOCATION;
+use crate::store::get_fpkg_dir;
 
 /// Gets a configuration option from the system
 pub fn get_config_option(name: &str) -> Option<String> {
-    let cfg_loc: String = CONFIG_LOCATION.to_string();
-    let path = Path::new(&cfg_loc).join(name);
+    let path = get_fpkg_dir().join(name);
     if !path.is_file() {
         return None;
     }

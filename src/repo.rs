@@ -1,3 +1,4 @@
+use crate::config::get_config_option;
 use crate::pkg::Version;
 use anyhow::Context;
 use anyhow::{bail, Result};
@@ -9,18 +10,16 @@ use pubgrub::Ranges;
 use pubgrub::{DefaultStringReporter, Reporter};
 use reqwest::blocking::Client;
 use std::fmt::{self, Display};
-use std::fs::{self, DirBuilder};
+use std::fs::DirBuilder;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use crate::info::mark_as_manually_installed;
-use crate::pkg::{self, onlinepackage_to_package, Dependency, Package};
+use crate::pkg::{self, Dependency, Package};
 use crate::store::get_store_location;
-use crate::CONFIG_LOCATION;
 
 type VersionSet = Ranges<Version>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub struct OnlinePackage {
     pub name: String,
     pub version: String,
@@ -48,6 +47,7 @@ impl OnlinePackage {
     }
 }
 
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub enum InstallResult {
     Installed,
     Ignored,
@@ -55,13 +55,8 @@ pub enum InstallResult {
 
 /// Returns a list of repository's URLs
 pub fn get_repositories() -> Result<Vec<String>> {
-    let repos_file_location = Path::new(CONFIG_LOCATION).join("repos");
-    let repo_file = match fs::read_to_string(repos_file_location) {
-        Ok(x) => x,
-        Err(_) => {
-            bail!("Failed to read repository list!");
-        }
-    };
+    let repo_file = get_config_option("repos")
+        .context("Failed to read repository list!")?;
 
     let mut repos: Vec<String> = Vec::new();
     for line in repo_file.lines() {
@@ -362,18 +357,12 @@ pub fn install_pkg_and_dependencies(
     pkg: &OnlinePackage,
     pkgs: &Vec<OnlinePackage>,
     done_list: &mut Vec<(OnlinePackage, InstallResult)>,
-    top_level: bool,
     reinstall: bool,
 ) -> Result<()> {
     let ires = install_pkg(pkg, reinstall)?;
-    if top_level {
-        mark_as_manually_installed(&onlinepackage_to_package(pkg))?;
-    }
     done_list.push((pkg.clone(), ires));
-    let dependencies = resolve_dependencies_for_package(
-        &pkgs,
-        &onlinepackage_to_package(pkg),
-    )?;
+    let dependencies =
+        resolve_dependencies_for_package(&pkgs, &pkg.clone().to_package())?;
 
     for depends in dependencies {
         if done_list
@@ -384,7 +373,7 @@ pub fn install_pkg_and_dependencies(
         {
             continue;
         }
-        install_pkg_and_dependencies(&depends, pkgs, done_list, false, false)?;
+        install_pkg_and_dependencies(&depends, pkgs, done_list, false)?;
     }
 
     Ok(())

@@ -1,42 +1,41 @@
 mod config;
 mod env;
+mod fpkg_file;
 mod gen_pkg;
-mod info;
 mod pkg;
 mod repo;
 mod run;
 mod store;
-mod uninstall;
 
-pub const CONFIG_LOCATION: &str = "/etc/fpkg/";
 pub const PROGRESS_STYLE: &str =
     "{msg} [{wide_bar:.green/blue}] {bytes}/{total_bytes} ({eta})";
 pub const PROGRESS_CHARS: &str = "##-";
 
 use std::{
+    fs::write,
     io::Read,
     path::{Path, PathBuf},
     process::exit,
     str::FromStr,
 };
 
+use fpkg_file::read_fpkg_file;
 use indicatif::ProgressIterator;
 
 use anyhow::{anyhow, Context, Result};
 use colog::format::CologStyle;
-use env::{generate_environment_for_package, package_to_env_location};
+use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use log::{error, info, warn, Level};
 use pkg::{
-    decompress_pkg_read, get_package_config, onlinepackage_to_package,
-    string_to_package, Package,
+    decompress_pkg_read, get_package_config, string_to_package, Package,
 };
 use repo::{
-    install_pkg_and_dependencies, newest_package_from_name,
-    package_to_onlinepackage, InstallResult, OnlinePackage,
+    get_all_available_packages, install_pkg_and_dependencies,
+    newest_package_from_name, package_to_onlinepackage, InstallResult,
+    OnlinePackage,
 };
 use run::run_multiple_packages;
-use store::get_installed_packages;
-use uninstall::uninstall_package_and_deps;
+use store::{get_fpkg_dir, get_installed_packages};
 use uzers::{
     self, get_current_uid, get_effective_uid,
     switch::{set_current_uid, set_effective_uid},
@@ -68,6 +67,7 @@ fn main() -> Result<()> {
     builder.filter(Some("pubgrub"), log::LevelFilter::Warn);
     builder.filter(Some("reqwest"), log::LevelFilter::Warn);
     builder.init();
+
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
 
@@ -111,14 +111,7 @@ fn main() -> Result<()> {
             }
 
             let path = PathBuf::from(&format!("{}", &args[2]));
-            let mut out = PathBuf::from_str(
-                &(path
-                    .clone()
-                    .to_str()
-                    .ok_or(anyhow!("Invalid path '{}'!", path.display()))?
-                    .to_string()
-                    + ".fpkg"),
-            )?;
+            let mut out = path.with_extension("fpkg");
 
             if argc > 3 {
                 out = PathBuf::from_str(&args[3])?;
@@ -130,104 +123,47 @@ fn main() -> Result<()> {
             }
             done();
         }
-        "build-env" => {
-            command_requires_root_uid();
-            if argc < 3 {
-                error!("Not enough arguments!");
-                exit(exitcode::USAGE);
-            }
+        "rebuild" => {
+            let fpkg = read_fpkg_file()?;
+            let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
+            let repo_packages = get_all_available_packages()?;
 
-            let installed_packages = get_installed_packages()?;
-
-            for pkg in &args[2..] {
-                let pkg = &string_to_package(pkg)?;
-
-                let out_path = package_to_env_location(&pkg)?;
-
-                env::generate_environment_for_package(
-                    pkg,
-                    &installed_packages,
-                    &out_path,
-                    &mut Vec::new(),
+            for package in fpkg.packages {
+                install_pkg_and_dependencies(
+                    &newest_package_from_name(&package.name, &repo_packages)
+                        .context(anyhow!(
+                            "Package {} is not found in repository!",
+                            package
+                        ))?,
+                    &repo_packages,
+                    &mut done_list,
+                    false,
                 )?;
             }
-            done();
+
+            let mut fpkg_lock = KdlDocument::new();
+
+            let mut packages_node = KdlNode::new("packages");
+            let mut packages_doc = KdlDocument::new();
+
+            let done_list = remove_duplicates(done_list);
+            for x in done_list {
+                let mut node = KdlNode::new(x.0.name);
+                node.entries_mut()
+                    .push(KdlEntry::new(KdlValue::String(x.0.version)));
+                packages_doc.nodes_mut().push(node);
+            }
+
+            packages_node.set_children(packages_doc);
+            fpkg_lock.nodes_mut().push(packages_node);
+
+            write(get_fpkg_dir().join("fpkg.lock"), fpkg_lock.to_string())
+                .context("Failed to write fpkg.lock file")?;
         }
         "list" => {
-            set_effective_uid(get_current_uid())?;
-            let packages = repo::get_all_available_packages().context(
-                "Failed to get a list of packages from the repository(s)",
-            )?;
-            for pkg in packages {
+            for pkg in get_installed_packages()? {
                 println!("{}-{}", pkg.name, pkg.version);
             }
-        }
-        "list-installed" => {
-            command_requires_root_uid();
-            let packages = store::get_installed_packages()?;
-            for pkg in packages {
-                println!("{}-{}", pkg.name, pkg.version);
-            }
-        }
-        "install" | "add" => {
-            command_requires_root_uid();
-            if argc < 3 {
-                error!("Not enough arguments!");
-                exit(exitcode::USAGE);
-            }
-            let packages = match repo::get_all_available_packages() {
-                Ok(x) => x,
-                Err(e) => {
-                    error!("{}", e.to_string());
-                    exit(exitcode::UNAVAILABLE);
-                }
-            };
-
-            let mut reinstall = false;
-
-            for pkg in &args[2..] {
-                if pkg == "--reinstall" {
-                    reinstall = true;
-                    continue;
-                }
-                let version = match friendly_str_to_package(pkg, &packages) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        error!(
-                            "Failed to find package {}: {}",
-                            pkg,
-                            e.to_string()
-                        );
-                        exit(exitcode::UNAVAILABLE);
-                    }
-                };
-                let version = package_to_onlinepackage(&version, &packages)?;
-
-                let mut done_list =
-                    Vec::<(OnlinePackage, InstallResult)>::new();
-
-                install_pkg_and_dependencies(
-                    &version,
-                    &packages,
-                    &mut done_list,
-                    true,
-                    reinstall,
-                )?;
-
-                let pkgs = get_installed_packages()?;
-
-                for done in done_list.iter().map(|x| &x.0) {
-                    generate_environment_for_package(
-                        &onlinepackage_to_package(&done),
-                        &pkgs,
-                        &package_to_env_location(&onlinepackage_to_package(
-                            &done,
-                        ))?,
-                        &mut Vec::<Package>::new(),
-                    )?;
-                }
-            }
-            done();
         }
         "run" => {
             if argc < 3 {
@@ -412,22 +348,6 @@ fn main() -> Result<()> {
                 ))?,
             );
         }
-        "uninstall" | "rm" => {
-            command_requires_root_uid();
-            if argc < 3 {
-                error!("Not enough arguments!");
-                exit(exitcode::USAGE);
-            }
-
-            for pkg in &args[2..] {
-                let packages = get_installed_packages()?;
-
-                uninstall_package_and_deps(Some(&friendly_str_to_package(
-                    &pkg, &packages,
-                )?))?;
-            }
-            done();
-        }
         cmd => {
             error!("Unknown command {}!", cmd);
             print_help();
@@ -442,6 +362,12 @@ fn done() {
     info!("Done!");
 }
 
+fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(mut l: Vec<T>) -> Vec<T> {
+    let mut seen = std::collections::HashSet::new();
+    l.retain(|c| seen.insert(c.clone()));
+    l
+}
+
 fn friendly_str_to_package(
     arg: &str,
     pkgs: &Vec<OnlinePackage>,
@@ -451,12 +377,10 @@ fn friendly_str_to_package(
             if package_to_onlinepackage(&x, pkgs).is_ok() {
                 x
             } else {
-                onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?)
+                newest_package_from_name(arg, pkgs)?.to_package()
             }
         }
-        Err(_) => {
-            onlinepackage_to_package(&newest_package_from_name(arg, pkgs)?)
-        }
+        Err(_) => newest_package_from_name(arg, pkgs)?.to_package(),
     };
     Ok(pkg)
 }
@@ -475,14 +399,10 @@ fn print_help() {
 Fpkg, package management, done right.
 
 Commands:
-    install/add     Installs packages
-    uninstall/rm    Uninstalls packages
-    list            Lists available packages from the repo
-    list-installed  Lists all installed packages
+    rebuild         Rebuilds the environment according to the fpkg file.
     run             Runs a program
     run-multi       Runs the first program specified in an env with the rest
     gen-pkg         Generates a package from a directory
-    build-env       Build or refreshes a packages environment
-    gen-index       Generates the index file for a package repository at CWD"
+    gen-index       Generates the index file for a package repository at PWD"
     );
 }
