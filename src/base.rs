@@ -8,7 +8,7 @@ fn mkdir_p(d: &Path) -> Result<()> {
     Ok(())
 }
 
-fn rebuild_base_(_fpkg: &FpkgFile, base_dir: &Path) -> Result<()> {
+fn rebuild_base_(fpkg: &FpkgFile, base_dir: &Path) -> Result<()> {
     mkdir_p(&base_dir)?;
     mkdir_p(&base_dir.join("usr/bin"))?;
     mkdir_p(&base_dir.join("usr/lib"))?;
@@ -19,6 +19,20 @@ fn rebuild_base_(_fpkg: &FpkgFile, base_dir: &Path) -> Result<()> {
     symlink("usr/bin", &base_dir.join("sbin"))?;
     symlink("bin", &base_dir.join("usr/sbin"))?;
     symlink("lib", &base_dir.join("usr/lib64"))?;
+
+    let mut passwd = String::new();
+    for user in fpkg.users.iter() {
+        passwd.push_str(&format!(
+            "{}:x:{}:{}:{}:{}:{}",
+            user.username,
+            user.uid,
+            user.gid,
+            user.gecos,
+            user.home_dir,
+            user.shell
+        ));
+    }
+    std::fs::write(base_dir.join("etc/passwd"), passwd)?;
     Ok(())
 }
 
