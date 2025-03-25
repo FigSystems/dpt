@@ -49,15 +49,6 @@ jobs:
         with:
           name: fpkg
           path: fpkg
-      - name: Generate the changelog
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --verbose --latest
-        env:
-          OUTPUT: CHANGELOG.md
-      - name: Debug ls
-        run: ls -R --color=auto
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
