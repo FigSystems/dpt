@@ -1,4 +1,4 @@
-use std::{os::unix::fs::symlink, path::Path};
+use std::{os::unix::fs::symlink, path::Path, str::FromStr};
 
 use crate::{fpkg_file::FpkgFile, store::get_fpkg_dir};
 use anyhow::Result;
@@ -23,7 +23,7 @@ fn rebuild_base_(fpkg: &FpkgFile, base_dir: &Path) -> Result<()> {
     let mut passwd = String::new();
     for user in fpkg.users.iter() {
         passwd.push_str(&format!(
-            "{}:x:{}:{}:{}:{}:{}",
+            "{}:x:{}:{}:{}:{}:{}\n",
             user.username,
             user.uid,
             user.gid,
@@ -33,6 +33,22 @@ fn rebuild_base_(fpkg: &FpkgFile, base_dir: &Path) -> Result<()> {
         ));
     }
     std::fs::write(base_dir.join("etc/passwd"), passwd)?;
+
+    let mut group = String::new();
+    for g in fpkg.groups.iter() {
+        let empty_string = String::new();
+        let mut members_str =
+            g.members.get(0).unwrap_or(&empty_string).to_string();
+        for (i, m) in g.members.iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
+            members_str.push_str(&format!(",{}", m));
+        }
+        group.push_str(&format!("{}:*:{}:{}", g.groupname, g.gid, members_str));
+    }
+
+    std::fs::write(base_dir.join("etc/group"), group)?;
     Ok(())
 }
 

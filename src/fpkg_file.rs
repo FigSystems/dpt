@@ -24,9 +24,17 @@ pub struct User {
     pub shell: String,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct Group {
+    pub groupname: String,
+    pub gid: u64,
+    pub members: Vec<String>,
+}
+
 pub struct FpkgFile {
     pub packages: Vec<Package>,
     pub users: Vec<User>,
+    pub groups: Vec<Group>,
 }
 
 fn kdlvalue_as_string(v: &KdlValue, n: &str) -> Result<String> {
@@ -45,6 +53,7 @@ fn kdlvalue_as_u64(v: &KdlValue, n: &str) -> Result<u64> {
 pub fn parse_fpkg_file(file: &KdlDocument) -> Result<FpkgFile> {
     let mut packages: Vec<Package> = Vec::new();
     let mut users: Vec<User> = Vec::new();
+    let mut groups: Vec<Group> = Vec::new();
     for x in file
         .get("packages")
         .unwrap_or(&KdlNode::new("packages"))
@@ -100,7 +109,42 @@ pub fn parse_fpkg_file(file: &KdlDocument) -> Result<FpkgFile> {
         });
     }
 
-    Ok(FpkgFile { packages, users })
+    for x in file
+        .get("groups")
+        .unwrap_or(&KdlNode::new("groups"))
+        .children()
+        .unwrap_or(&KdlDocument::new())
+        .nodes()
+    {
+        let groupname = x.name().to_string();
+        let gid: u64 = x
+            .entries()
+            .get(0)
+            .ok_or(anyhow!("GID not specified in group declaration!"))?
+            .value()
+            .as_integer()
+            .ok_or(anyhow!("GID is not an integer in group declaration!"))?
+            .try_into()
+            .context("Failed to convert GID to u64!")?;
+        let members = x
+            .children()
+            .unwrap_or(&KdlDocument::new())
+            .nodes()
+            .iter()
+            .map(|x| x.name().to_string())
+            .collect();
+        groups.push(Group {
+            groupname,
+            gid,
+            members,
+        });
+    }
+
+    Ok(FpkgFile {
+        packages,
+        users,
+        groups,
+    })
 }
 
 pub fn get_fpkg_file_location() -> PathBuf {
@@ -184,6 +228,47 @@ users {
                     gecos: "George, Room 8".into(),
                     home_dir: "/home/george".into(),
                     shell: "/bin/bash".into()
+                }
+            ]
+        )
+    }
+
+    #[test]
+    fn groups_array() {
+        let doc: KdlDocument = r#"
+groups {
+    me 1 {
+        someone
+        someone_else
+    }
+    nobody 65536 {
+        noone
+    }
+    empty 2
+}
+        "#
+        .parse()
+        .unwrap();
+
+        let out = parse_fpkg_file(&doc).unwrap();
+
+        assert_eq!(
+            out.groups,
+            vec![
+                Group {
+                    groupname: "me".into(),
+                    gid: 1,
+                    members: vec!["someone".into(), "someone_else".into()]
+                },
+                Group {
+                    groupname: "nobody".into(),
+                    gid: 65536,
+                    members: vec!["noone".into()]
+                },
+                Group {
+                    groupname: "empty".into(),
+                    gid: 2,
+                    members: vec![]
                 }
             ]
         )
