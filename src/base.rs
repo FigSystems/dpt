@@ -127,8 +127,9 @@ DEFAULT_HOME          yes
 NONEXISTENT           /nonexistent
 ENVIRON_FILE          /etc/environment
 USERGROUPS_ENAB       yes
-PREVENT_NO_AUTH       superuser"#
-        .to_string()
+PREVENT_NO_AUTH       superuser
+"#
+    .to_string()
 }
 
 pub fn rebuild_base(dpt: &DptFile) -> Result<()> {

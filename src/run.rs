@@ -9,8 +9,8 @@ use sys_mount::{unmount, UnmountFlags};
 use crate::{
     pkg::Package,
     store::{
-        get_installed_packages, get_installed_packages_without_dpt_file,
-        get_store_location,
+        get_dpt_dir, get_installed_packages,
+        get_installed_packages_without_dpt_file,
     },
 };
 
@@ -103,11 +103,11 @@ pub fn run_pkg_(
         .recursive(true)
         .create(&out_dir)?;
 
-    let store_dir = get_store_location();
+    let fpkg_dir = get_dpt_dir();
 
-    // Bind mount dpt store inside the out_dir
-    let store_target = join_proper(&out_dir, &store_dir)?;
-    bind_mount(&store_dir, &store_target)?;
+    // Bind mount dpt dir inside the out_dir
+    let fpkg_target = join_proper(&out_dir, &fpkg_dir)?;
+    bind_mount(&fpkg_dir, &fpkg_target)?;
 
     let mut binds = Vec::<PathBuf>::new();
 
@@ -161,7 +161,7 @@ pub fn run_pkg_(
     }
     let mut binds2: Vec<PathBuf> = Vec::new();
     let mut binds = binds;
-    binds.push(store_target);
+    binds.push(fpkg_target);
 
     for _ in 0..10 {
         for bind in &binds {
