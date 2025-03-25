@@ -20,12 +20,10 @@ pub fn get_store_location() -> PathBuf {
     get_dpt_dir().join("store")
 }
 
-/// Gets a list of all packages that are installed and in the dpt configuration.
-pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
+pub fn get_installed_packages_without_dpt_file() -> Result<Vec<OnlinePackage>> {
     let store = get_store_location();
     let entries = fs::read_dir(store)?;
     let mut packages = Vec::<OnlinePackage>::new();
-    let dpt = read_dpt_lock_file()?;
 
     for ent in entries {
         let path = ent?.path();
@@ -55,13 +53,6 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
         }
         let pkg_config = pkg_config.unwrap();
 
-        if !dpt.packages.contains(&Package {
-            name: pkg_config.name.clone(),
-            version: pkg_config.version.clone(),
-        }) {
-            continue;
-        }
-
         packages.push(OnlinePackage {
             name: pkg_config.name,
             version: pkg_config.version,
@@ -70,4 +61,19 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
         })
     }
     Ok(packages)
+}
+
+/// Gets a list of all packages that are installed and in the dpt configuration.
+pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
+    let dpt = read_dpt_lock_file()?;
+    Ok(get_installed_packages_without_dpt_file()?
+        .iter()
+        .filter(|x| {
+            dpt.packages.contains(&Package {
+                name: x.name.clone(),
+                version: x.version.clone(),
+            })
+        })
+        .map(|x| x.to_owned())
+        .collect::<Vec<OnlinePackage>>())
 }

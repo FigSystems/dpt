@@ -89,6 +89,7 @@ fn main() -> Result<()> {
     if args[1] != "chroot-not-intended-for-interactive-use"
         && args[1] != "run"
         && args[1] != "run-multi"
+        && args[1] != "dev-env"
     {
         for arg in &args {
             match arg.as_str() {
@@ -189,7 +190,7 @@ fn main() -> Result<()> {
                     run_args.push(arg.clone());
                 }
             }
-            exit(run::run_pkg(&pkg, uid, run_args, None)?);
+            exit(run::run_pkg(&pkg, uid, run_args, None, false)?);
         }
         "run-multi" => {
             if argc < 3 {
@@ -238,7 +239,80 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            exit(run_multiple_packages(&packages_to_run, uid, run_args, cmd)?);
+            exit(run_multiple_packages(
+                &packages_to_run,
+                uid,
+                run_args,
+                cmd,
+                false,
+            )?);
+        }
+        "dev-env" => {
+            if argc < 3 {
+                error!("Not enough arguments!");
+                exit(exitcode::USAGE);
+            }
+            let packages = get_all_available_packages()?;
+            let mut packages_to_run = Vec::<Package>::new();
+            let mut previous_was_cmd = false;
+            let mut cmd: Option<&str> = None;
+            for pkg in &args[2..] {
+                if pkg == "--" {
+                    break;
+                }
+                if previous_was_cmd {
+                    cmd = Some(pkg);
+                    continue;
+                }
+                if pkg == "--cmd" || pkg == "-c" {
+                    previous_was_cmd = true;
+                    continue;
+                } else {
+                    previous_was_cmd = false;
+                }
+
+                let version = friendly_str_to_package(pkg, &packages)
+                    .context(anyhow!("Package `{}` not found!", pkg))?;
+                packages_to_run.push(version);
+            }
+
+            let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
+
+            for package in packages_to_run.iter() {
+                install_pkg_and_dependencies(
+                    &package_to_onlinepackage(&package, &packages)?,
+                    &packages,
+                    &mut done_list,
+                    false,
+                )?;
+            }
+
+            let uid = get_current_uid();
+            if uid == 0 && std::env::var("SUDO_USER").is_ok() {
+                warn!("When running `dpt dev-env` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+            }
+            set_current_uid(0)?;
+
+            let mut run_args = Vec::<String>::new();
+            if argc > 3 {
+                let mut active = false;
+                for arg in &args[3..] {
+                    if active {
+                        run_args.push(arg.clone());
+                    } else {
+                        if arg == "--" {
+                            active = true;
+                        }
+                    }
+                }
+            }
+            exit(run_multiple_packages(
+                &packages_to_run,
+                uid,
+                run_args,
+                cmd,
+                true,
+            )?);
         }
         "gen-index" => {
             set_effective_uid(get_current_uid())?;

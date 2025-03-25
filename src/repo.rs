@@ -281,7 +281,7 @@ pub fn newest_package_from_name(
     }
     match newest_package {
         Some(x) => Ok(x),
-        None => bail!("Package not found"),
+        None => bail!("Package '{package}' not found"),
     }
 }
 

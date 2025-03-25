@@ -55,7 +55,7 @@ else
   if [[ -v CUSTOM_CMD ]]; then
     custom_cmd=("--cmd" "$CUSTOM_CMD")
   fi
-  dpt run-multi $default_package_list "${makedepends[@]}" "${custom_cmd[@]}" <<EOF
+  dpt dev-env $default_package_list "${makedepends[@]}" "${custom_cmd[@]}" <<EOF
 set -e
 set -u
 

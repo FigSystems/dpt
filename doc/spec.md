@@ -38,15 +38,19 @@ Covers the basics of dpt’s command line usage. Do note that dpt should be inst
 
 Rebuild the system according to the file dpt system configuration file. Will also update the system if the repositories are available.
 
-### dpt run \[package\] \[args\]
+## dpt run \[package\] \[args\]
 
 Runs the package specified. All other arguments will be passed to the package.
 
-### dpt run-multi \[packages\] -- \[args\]
+## dpt run-multi \[packages\] -- \[args\]
 
 Runs the first package specified in an environment that also includes the others.
 
-### dpt gen-pkg
+## dpt dev-env [packages] -- [args]
+
+Fetches the packages if they are not found into the store, and runs them in the same ways as run-multi does. Only intended for the purpose of `makedpt` and other development related tasks.
+
+## dpt gen-pkg
 
 Generates a package from a directory.
 

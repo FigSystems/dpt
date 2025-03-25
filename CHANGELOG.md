@@ -1,0 +1,7 @@
+# Changlog
+
+- Rename `fpkg` to `dpt`
+
+- Make dpt be controlled by a central dpt configuration file
+
+- Add `dev-env` command

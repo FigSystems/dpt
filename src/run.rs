@@ -8,7 +8,10 @@ use sys_mount::{unmount, UnmountFlags};
 
 use crate::{
     pkg::Package,
-    store::{get_installed_packages, get_store_location},
+    store::{
+        get_installed_packages, get_installed_packages_without_dpt_file,
+        get_store_location,
+    },
 };
 
 pub fn get_run_location() -> PathBuf {
@@ -79,8 +82,15 @@ pub fn run_pkg(
     uid: u32,
     args: Vec<String>,
     cmd: Option<&str>,
+    allow_non_dpt_file: bool,
 ) -> Result<i32> {
-    run_multiple_packages(&vec![pkg.clone()], uid, args, cmd)
+    run_multiple_packages(
+        &vec![pkg.clone()],
+        uid,
+        args,
+        cmd,
+        allow_non_dpt_file,
+    )
 }
 
 pub fn run_pkg_(
@@ -187,6 +197,7 @@ pub fn run_multiple_packages(
     uid: u32,
     args: Vec<String>,
     cmd: Option<&str>,
+    allow_non_dpt_file: bool,
 ) -> Result<i32> {
     if pkgs.is_empty() {
         bail!("No packages specified!");
@@ -199,7 +210,11 @@ pub fn run_multiple_packages(
     let pkg_path = pkg_path;
 
     let mut done_list: Vec<Package> = Vec::new();
-    let installed_packages = get_installed_packages()?;
+    let installed_packages = if allow_non_dpt_file == false {
+        get_installed_packages()?
+    } else {
+        get_installed_packages_without_dpt_file()?
+    };
 
     for pkg in pkgs {
         crate::env::generate_environment_for_package(
