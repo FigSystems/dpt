@@ -258,7 +258,7 @@ pub fn string_to_package(s: &str) -> Result<Package> {
     })
 }
 
-/// Tars the directory and compresses it into a .fpkg
+/// Tars the directory and compresses it into a .dpt
 pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
     let f = std::fs::File::create(&out)?;
 

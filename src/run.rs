@@ -14,7 +14,7 @@ use crate::{
 pub fn get_run_location() -> PathBuf {
     match crate::config::get_config_option(&"run".to_string()) {
         Some(x) => PathBuf::from(x),
-        None => PathBuf::from("/fpkg/run/"),
+        None => PathBuf::from("/dpt/run/"),
     }
 }
 
@@ -95,7 +95,7 @@ pub fn run_pkg_(
 
     let store_dir = get_store_location();
 
-    // Bind mount fpkg store inside the out_dir
+    // Bind mount dpt store inside the out_dir
     let store_target = join_proper(&out_dir, &store_dir)?;
     bind_mount(&store_dir, &store_target)?;
 

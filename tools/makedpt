@@ -4,12 +4,12 @@ set -e
 
 file="$1"
 
-[ -f "FPKGBUILD" ] && [ -z "$1" ] && {
-  file="$PWD/FPKGBUILD"
+[ -f "DPTBUILD" ] && [ -z "$1" ] && {
+  file="$PWD/DPTBUILD"
 }
 
-[ -n "$1" ] || [ -f "FPKGBUILD" ] || {
-  echo "Please specify an FPKGBUILD file"
+[ -n "$1" ] || [ -f "DPTBUILD" ] || {
+  echo "Please specify a DPTBUILD file"
   exit 1
 }
 
@@ -51,11 +51,11 @@ else
   if [[ -v NO_DEFAULT_PACKAGES ]]; then
     default_package_list=""
   fi
-  custom_cmd=( )
+  custom_cmd=()
   if [[ -v CUSTOM_CMD ]]; then
     custom_cmd=("--cmd" "$CUSTOM_CMD")
   fi
-  fpkg run-multi $default_package_list "${makedepends[@]}" "${custom_cmd[@]}" <<EOF
+  dpt run-multi $default_package_list "${makedepends[@]}" "${custom_cmd[@]}" <<EOF
 set -e
 set -u
 
@@ -78,8 +78,8 @@ function deps_to_string() {
   done
 }
 
-mkdir -p "$pkgdir/fpkg"
-cat <<EOF >"$pkgdir/fpkg/pkg.kdl"
+mkdir -p "$pkgdir/dpt"
+cat <<EOF >"$pkgdir/dpt/pkg.kdl"
 name "$pkgname"
 version "$pkgver"
 
@@ -87,8 +87,8 @@ $(deps_to_string)
 EOF
 
 echo "----------------------"
-cat "$pkgdir/fpkg/pkg.kdl"
+cat "$pkgdir/dpt/pkg.kdl"
 echo "----------------------"
 
-fpkg gen-pkg "$pkgdir" "$pkgname-$pkgver.fpkg"
+dpt gen-pkg "$pkgdir" "$pkgname-$pkgver.dpt"
 exit 0

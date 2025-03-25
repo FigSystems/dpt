@@ -15,7 +15,7 @@ use crate::{
         package_to_onlinepackage, resolve_dependencies_for_package,
         OnlinePackage,
     },
-    store::get_fpkg_dir,
+    store::get_dpt_dir,
 };
 
 /// Generates the environment for a package, version solving to find dependencies.
@@ -43,9 +43,9 @@ pub fn generate_environment_for_package(
         std::fs::DirBuilder::new()
             .recursive(true)
             .create(out_path)?;
-        if get_fpkg_dir().join("base").is_dir() {
+        if get_dpt_dir().join("base").is_dir() {
             generate_environment_for_directory(
-                &get_fpkg_dir().join("base"),
+                &get_dpt_dir().join("base"),
                 &out_path,
             )?;
         } else {
@@ -85,7 +85,7 @@ pub fn generate_environment_for_directory(
         .filter_map(|e| e.ok())
     {
         let blank_path = ent.path().strip_prefix(&pkg_data_dir)?;
-        if blank_path.starts_with("fpkg") {
+        if blank_path.starts_with("dpt") {
             continue;
         }
         let target_path = out_path.join(blank_path);

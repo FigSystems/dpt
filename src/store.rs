@@ -2,30 +2,30 @@ use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::fpkg_file::read_fpkg_lock_file;
+use crate::dpt_file::read_dpt_lock_file;
 use crate::pkg::{get_package_config, Package};
 use crate::repo::OnlinePackage;
 use anyhow::{anyhow, Result};
 
-pub fn get_fpkg_dir() -> PathBuf {
-    if let Ok(x) = fs::read_to_string("/etc/fpkg/dir") {
+pub fn get_dpt_dir() -> PathBuf {
+    if let Ok(x) = fs::read_to_string("/etc/dpt/dir") {
         PathBuf::from_str(&x)
-            .expect("Malformed directory path in `/etc/fpkg/dir`!")
+            .expect("Malformed directory path in `/etc/dpt/dir`!")
     } else {
-        PathBuf::from_str("/fpkg").unwrap()
+        PathBuf::from_str("/dpt").unwrap()
     }
 }
 
 pub fn get_store_location() -> PathBuf {
-    get_fpkg_dir().join("store")
+    get_dpt_dir().join("store")
 }
 
-/// Gets a list of all packages that are installed and in the fpkg configuration.
+/// Gets a list of all packages that are installed and in the dpt configuration.
 pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
     let store = get_store_location();
     let entries = fs::read_dir(store)?;
     let mut packages = Vec::<OnlinePackage>::new();
-    let fpkg = read_fpkg_lock_file()?;
+    let dpt = read_dpt_lock_file()?;
 
     for ent in entries {
         let path = ent?.path();
@@ -35,7 +35,7 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
 
-        let doc = fs::read_to_string(path.join("fpkg/pkg.kdl"));
+        let doc = fs::read_to_string(path.join("dpt/pkg.kdl"));
         if let Err(_) = doc {
             log::warn!(
                 "Failed to read the configuration file for package {}!",
@@ -55,7 +55,7 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
         }
         let pkg_config = pkg_config.unwrap();
 
-        if !fpkg.packages.contains(&Package {
+        if !dpt.packages.contains(&Package {
             name: pkg_config.name.clone(),
             version: pkg_config.version.clone(),
         }) {

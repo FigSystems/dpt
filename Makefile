@@ -10,19 +10,19 @@ build-debug:
 build-release:
 	cargo build --release
 
-install-makefpkg:
+install-makedpt:
 	mkdir -p $(DESTDIR)/bin
-	cp tools/makefpkg $(DESTDIR)/bin/makefpkg
-	chmod +x $(DESTDIR)/bin/makefpkg
+	cp tools/makedpt $(DESTDIR)/bin/makedpt
+	chmod +x $(DESTDIR)/bin/makedpt
 
-install-debug: install-makefpkg
+install-debug: install-makedpt
 	mkdir -p $(DESTDIR)/bin
-	cp -f target/x86_64-unknown-linux-musl/debug/fpkg $(DESTDIR)/bin/
-	chown root:root $(DESTDIR)/bin/fpkg
-	chmod u+s $(DESTDIR)/bin/fpkg
+	cp -f target/x86_64-unknown-linux-musl/debug/dpt $(DESTDIR)/bin/
+	chown root:root $(DESTDIR)/bin/dpt
+	chmod u+s $(DESTDIR)/bin/dpt
 
-install-release: install-makefpkg
+install-release: install-makedpt
 	mkdir -p $(DESTDIR)/bin
-	cp -f target/x86_64-unknown-linux-musl/release/fpkg $(DESTDIR)/bin/
-	chown root:root $(DESTDIR)/bin/fpkg
-	chmod u+s $(DESTDIR)/bin/fpkg
+	cp -f target/x86_64-unknown-linux-musl/release/dpt $(DESTDIR)/bin/
+	chown root:root $(DESTDIR)/bin/dpt
+	chmod u+s $(DESTDIR)/bin/dpt

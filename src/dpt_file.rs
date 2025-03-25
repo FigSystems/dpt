@@ -11,7 +11,7 @@ use kdl::KdlValue;
 
 use crate::pkg::parse_kdl;
 use crate::pkg::Package;
-use crate::store::get_fpkg_dir;
+use crate::store::get_dpt_dir;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct User {
@@ -31,7 +31,7 @@ pub struct Group {
     pub members: Vec<String>,
 }
 
-pub struct FpkgFile {
+pub struct DptFile {
     pub packages: Vec<Package>,
     pub users: Vec<User>,
     pub groups: Vec<Group>,
@@ -47,10 +47,10 @@ fn kdlvalue_as_u64(v: &KdlValue, n: &str) -> Result<u64> {
     Ok(v.as_integer()
         .ok_or(anyhow!("Value {n} is not an integer!"))?
         .try_into()
-        .context("In converting an integer in the fpkg file to a u64")?)
+        .context("In converting an integer in the dpt file to a u64")?)
 }
 
-pub fn parse_fpkg_file(file: &KdlDocument) -> Result<FpkgFile> {
+pub fn parse_dpt_file(file: &KdlDocument) -> Result<DptFile> {
     let mut packages: Vec<Package> = Vec::new();
     let mut users: Vec<User> = Vec::new();
     let mut groups: Vec<Group> = Vec::new();
@@ -140,30 +140,30 @@ pub fn parse_fpkg_file(file: &KdlDocument) -> Result<FpkgFile> {
         });
     }
 
-    Ok(FpkgFile {
+    Ok(DptFile {
         packages,
         users,
         groups,
     })
 }
 
-pub fn get_fpkg_file_location() -> PathBuf {
-    get_fpkg_dir().join("fpkg.kdl")
+pub fn get_dpt_file_location() -> PathBuf {
+    get_dpt_dir().join("dpt.kdl")
 }
 
-pub fn get_fpkg_lock_location() -> PathBuf {
-    get_fpkg_dir().join("fpkg.lock")
+pub fn get_dpt_lock_location() -> PathBuf {
+    get_dpt_dir().join("dpt.lock")
 }
 
-pub fn read_fpkg_file() -> Result<FpkgFile> {
-    parse_fpkg_file(&parse_kdl(&std::fs::read_to_string(
-        get_fpkg_file_location(),
+pub fn read_dpt_file() -> Result<DptFile> {
+    parse_dpt_file(&parse_kdl(&std::fs::read_to_string(
+        get_dpt_file_location(),
     )?)?)
 }
 
-pub fn read_fpkg_lock_file() -> Result<FpkgFile> {
-    parse_fpkg_file(&parse_kdl(&std::fs::read_to_string(
-        get_fpkg_lock_location(),
+pub fn read_dpt_lock_file() -> Result<DptFile> {
+    parse_dpt_file(&parse_kdl(&std::fs::read_to_string(
+        get_dpt_lock_location(),
     )?)?)
 }
 
@@ -184,7 +184,7 @@ packages {
         .parse()
         .expect("Failed to parse KDL!");
 
-        let out = parse_fpkg_file(&doc).unwrap();
+        let out = parse_dpt_file(&doc).unwrap();
         assert_eq!(
             out.packages,
             vec![
@@ -207,7 +207,7 @@ users {
         .parse()
         .expect("Failed to parse KDL!");
 
-        let out = parse_fpkg_file(&doc).unwrap();
+        let out = parse_dpt_file(&doc).unwrap();
         assert_eq!(
             out.users,
             vec![
@@ -250,7 +250,7 @@ groups {
         .parse()
         .unwrap();
 
-        let out = parse_fpkg_file(&doc).unwrap();
+        let out = parse_dpt_file(&doc).unwrap();
 
         assert_eq!(
             out.groups,

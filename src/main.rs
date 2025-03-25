@@ -1,7 +1,7 @@
 mod base;
 mod config;
+mod dpt_file;
 mod env;
-mod fpkg_file;
 mod gen_pkg;
 mod pkg;
 mod repo;
@@ -23,7 +23,7 @@ use std::{
 };
 
 use base::rebuild_base;
-use fpkg_file::read_fpkg_file;
+use dpt_file::read_dpt_file;
 use indicatif::ProgressIterator;
 
 use anyhow::{anyhow, Context, Result};
@@ -39,7 +39,7 @@ use repo::{
     OnlinePackage,
 };
 use run::run_multiple_packages;
-use store::{get_fpkg_dir, get_installed_packages};
+use store::{get_dpt_dir, get_installed_packages};
 use uzers::{
     self, get_current_uid, get_effective_uid,
     switch::{set_current_uid, set_effective_uid},
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
             }
 
             let path = PathBuf::from(&format!("{}", &args[2]));
-            let mut out = path.with_extension("fpkg");
+            let mut out = path.with_extension("dpt");
 
             if argc > 3 {
                 out = PathBuf::from_str(&args[3])?;
@@ -128,11 +128,11 @@ fn main() -> Result<()> {
         }
         "rebuild" => {
             command_requires_root_uid();
-            let fpkg = read_fpkg_file()?;
+            let dpt = read_dpt_file()?;
             let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
             let repo_packages = get_all_available_packages()?;
 
-            for package in fpkg.packages.iter() {
+            for package in dpt.packages.iter() {
                 install_pkg_and_dependencies(
                     &newest_package_from_name(&package.name, &repo_packages)
                         .context(anyhow!(
@@ -145,9 +145,9 @@ fn main() -> Result<()> {
                 )?;
             }
 
-            rebuild_base(&fpkg).context("Failed to build base!")?;
+            rebuild_base(&dpt).context("Failed to build base!")?;
 
-            let mut fpkg_lock = KdlDocument::new();
+            let mut dpt_lock = KdlDocument::new();
 
             let mut packages_node = KdlNode::new("packages");
             let mut packages_doc = KdlDocument::new();
@@ -161,10 +161,10 @@ fn main() -> Result<()> {
             }
 
             packages_node.set_children(packages_doc);
-            fpkg_lock.nodes_mut().push(packages_node);
+            dpt_lock.nodes_mut().push(packages_node);
 
-            write(get_fpkg_dir().join("fpkg.lock"), fpkg_lock.to_string())
-                .context("Failed to write fpkg.lock file")?;
+            write(get_dpt_dir().join("dpt.lock"), dpt_lock.to_string())
+                .context("Failed to write dpt.lock file")?;
         }
         "list" => {
             for pkg in get_installed_packages()? {
@@ -180,7 +180,7 @@ fn main() -> Result<()> {
                 friendly_str_to_package(&args[2], &get_installed_packages()?)?;
             let uid = get_current_uid();
             if uid == 0 && std::env::var("SUDO_USER").is_ok() {
-                warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+                warn!("When running `dpt run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
             }
             set_current_uid(0)?;
             let mut run_args = Vec::<String>::new();
@@ -221,7 +221,7 @@ fn main() -> Result<()> {
             }
             let uid = get_current_uid();
             if uid == 0 && std::env::var("SUDO_USER").is_ok() {
-                warn!("When running `fpkg run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+                warn!("When running `dpt run` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
             }
             set_current_uid(0)?;
 
@@ -244,7 +244,7 @@ fn main() -> Result<()> {
             set_effective_uid(get_current_uid())?;
             let mut out_str = String::new();
 
-            let fpkgs = std::fs::read_dir(".")?
+            let dpts = std::fs::read_dir(".")?
                 .filter(|x| {
                     x.is_ok()
                         && x.as_ref().unwrap().path().extension().is_some()
@@ -254,11 +254,11 @@ fn main() -> Result<()> {
                             .extension()
                             .unwrap()
                             .to_str()
-                            == "fpkg".into()
+                            == "dpt".into()
                 })
                 .map(|x| x.unwrap().path())
                 .collect::<Vec<PathBuf>>();
-            for ent in fpkgs.into_iter().progress().with_style(
+            for ent in dpts.into_iter().progress().with_style(
                 indicatif::ProgressStyle::default_bar()
                     .template(PROGRESS_STYLE)?
                     .progress_chars(PROGRESS_CHARS),
@@ -266,7 +266,7 @@ fn main() -> Result<()> {
                 let mut pkg = decompress_pkg_read(std::fs::File::open(&ent)?)?;
                 for pkg_ent in pkg.entries()? {
                     let mut pkg_ent = pkg_ent?;
-                    if pkg_ent.path()? == Path::new("fpkg/pkg.kdl") {
+                    if pkg_ent.path()? == Path::new("dpt/pkg.kdl") {
                         let mut buf = String::new();
                         pkg_ent.read_to_string(&mut buf)?;
                         let cfg = get_package_config(&buf)?;
@@ -395,12 +395,12 @@ fn command_requires_root_uid() {
 
 fn print_help() {
     println!(
-        "Usage: fpkg command [additional arguments]
+        "Usage: dpt command [additional arguments]
 
-Fpkg, package management, done right.
+Dpt, package management, done right.
 
 Commands:
-    rebuild         Rebuilds the environment according to the fpkg file.
+    rebuild         Rebuilds the environment according to the dpt file.
     run             Runs a program
     run-multi       Runs the first program specified in an env with the rest
     gen-pkg         Generates a package from a directory

@@ -387,25 +387,25 @@ mod tests {
     #[test]
     fn parse_repository_index_1() {
         let index = r###"
-package name=test version="9.11.14" path="/test.fpkg"
-package name=example version="1.2.3" path="my-pkg.fpkg" {
+package name=test version="9.11.14" path="/test.dpt"
+package name=example version="1.2.3" path="my-pkg.dpt" {
     depends example1
     depends example2 version="^10.2.0"
 }
             "###;
         let x =
-            parse_repository_index(index, "https://my.repo.here/fpkg").unwrap();
+            parse_repository_index(index, "https://my.repo.here/dpt").unwrap();
         let expected: Vec<OnlinePackage> = vec![
             OnlinePackage {
                 name: "test".to_string(),
                 version: "9.11.14".to_string(),
-                url: "https://my.repo.here/fpkg/test.fpkg".to_string(),
+                url: "https://my.repo.here/dpt/test.dpt".to_string(),
                 depends: Vec::<Dependency>::new(),
             },
             OnlinePackage {
                 name: "example".to_string(),
                 version: "1.2.3".to_string(),
-                url: "https://my.repo.here/fpkg/my-pkg.fpkg".to_string(),
+                url: "https://my.repo.here/dpt/my-pkg.dpt".to_string(),
                 depends: vec![
                     Dependency {
                         name: "example1".to_string(),
@@ -428,13 +428,13 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
             OnlinePackage {
                 name: "1".to_string(),
                 version: "1.2.3".to_string(),
-                url: "https://my.repo.pkg/fpkg/1.fpkg".to_string(),
+                url: "https://my.repo.pkg/dpt/1.dpt".to_string(),
                 depends: vec![],
             },
             OnlinePackage {
                 name: "2".to_string(),
                 version: "4.5.6".to_string(),
-                url: "https://my.repo.pkg/fpkg/2.fpkg".to_string(),
+                url: "https://my.repo.pkg/dpt/2.dpt".to_string(),
                 depends: vec![Dependency {
                     name: "1".to_string(),
                     version_mask: ">=1.0.0".to_string(),
@@ -443,7 +443,7 @@ package name=example version="1.2.3" path="my-pkg.fpkg" {
             OnlinePackage {
                 name: "goal".to_string(),
                 version: "7.8.9".to_string(),
-                url: "https://my.repo.pkg/fpkg/goal.fpkg".to_string(),
+                url: "https://my.repo.pkg/dpt/goal.dpt".to_string(),
                 depends: vec![Dependency {
                     name: "2".to_string(),
                     version_mask: ">4.5.0".to_string(),

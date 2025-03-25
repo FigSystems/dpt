@@ -258,6 +258,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "dpt"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "colog",
+ "ctrlc",
+ "exitcode",
+ "indicatif",
+ "kdl",
+ "log",
+ "nix",
+ "pathdiff",
+ "pubgrub",
+ "rand 0.9.0",
+ "reqwest",
+ "sys-mount",
+ "tar",
+ "uzers",
+ "walkdir",
+ "zstd",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -339,29 +362,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "fpkg"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "colog",
- "ctrlc",
- "exitcode",
- "indicatif",
- "kdl",
- "log",
- "nix",
- "pathdiff",
- "pubgrub",
- "rand 0.9.0",
- "reqwest",
- "sys-mount",
- "tar",
- "uzers",
- "walkdir",
- "zstd",
 ]
 
 [[package]]
