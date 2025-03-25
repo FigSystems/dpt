@@ -388,7 +388,7 @@ fn main() -> Result<()> {
                 }
             }
 
-            print!("{}", &out_str);
+            std::fs::write("index.kdl", &out_str)?;
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
