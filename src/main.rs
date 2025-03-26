@@ -252,6 +252,13 @@ fn main() -> Result<()> {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
+
+            let uid = get_current_uid();
+            if uid == 0 && std::env::var("SUDO_USER").is_ok() {
+                warn!("When running `dpt dev-env` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
+            }
+            set_current_uid(0)?;
+
             let packages = get_all_available_packages()?;
             let mut packages_to_run = Vec::<Package>::new();
             let mut previous_was_cmd = false;
@@ -286,12 +293,6 @@ fn main() -> Result<()> {
                     false,
                 )?;
             }
-
-            let uid = get_current_uid();
-            if uid == 0 && std::env::var("SUDO_USER").is_ok() {
-                warn!("When running `dpt dev-env` using sudo, the inner package gets run as root. Use setuid instead of sudo to run it as yourself");
-            }
-            set_current_uid(0)?;
 
             let mut run_args = Vec::<String>::new();
             if argc > 3 {
