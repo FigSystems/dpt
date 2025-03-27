@@ -55,93 +55,103 @@ impl PartialEq for PackageConfig {
 
 #[derive(PartialEq, Debug, Clone, Eq)]
 pub struct Version {
-    n1: u32,
-    n2: u32,
-    n3: u32,
+    n: Vec<u32>,
 }
 
 impl Version {
-    pub fn new(n1: u32, n2: u32, n3: u32) -> Self {
-        Version { n1, n2, n3 }
+    pub fn new(n: Vec<u32>) -> Self {
+        Version { n }
     }
     pub fn from_str(s: &str) -> Result<Self> {
-        let mut ret = Version::new(0, 0, 0);
         let dots = s.chars().filter(|c| *c == '.').count();
         if dots > 2 {
             bail!("To many numbers in version {}!", s);
         }
         let str_split = s.split(".").into_iter().collect::<Vec<&str>>();
-        if str_split.len() == 3 {
-            ret.n1 = index_or_err_str(&str_split, 0)?.parse()?;
-            ret.n2 = index_or_err_str(&str_split, 1)?.parse()?;
-            ret.n3 = index_or_err_str(&str_split, 2)?.parse()?;
-        } else if str_split.len() == 2 {
-            ret.n1 = index_or_err_str(&str_split, 0)?.parse()?;
-            ret.n2 = index_or_err_str(&str_split, 1)?.parse()?;
-        } else if str_split.len() == 1 {
-            ret.n1 = index_or_err_str(&str_split, 0)?.parse()?;
-        } else {
-            bail!("Not enough componenents in string {s}");
+        if str_split.len() < 1 {
+            bail!("Empty version strings are invalid!");
         }
-        Ok(ret)
+        let mut n: Vec<u32> = Vec::new();
+        for i in 0..str_split.len() {
+            n.push(index_or_err_str(&str_split, i)?.parse()?);
+        }
+        Ok(Version { n })
     }
 
     pub fn bump(&self) -> Self {
-        Version::new(self.n1, self.n2, self.n3 + 1)
+        let len = self.n.len();
+        let mut n = self.n.clone();
+        n[len - 1] += 1;
+        Version { n }
     }
 
     pub fn zero() -> Self {
-        Version::new(0, 0, 0)
+        Version::new(vec![0])
     }
 }
 
 impl Ord for Version {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.n1 > other.n1 {
-            Ordering::Greater
-        } else if self.n1 < other.n1 {
-            Ordering::Less
-        } else if self.n2 > other.n2 {
-            Ordering::Greater
-        } else if self.n2 < other.n2 {
-            Ordering::Less
-        } else if self.n3 > other.n3 {
-            Ordering::Greater
-        } else if self.n3 < other.n3 {
-            Ordering::Less
-        } else {
-            Ordering::Equal
+        let mut i = 0;
+        loop {
+            let mine = self.n.get(i);
+            let theirs = other.n.get(i);
+            if mine.is_none() || theirs.is_none() {
+                return std::cmp::Ordering::Equal;
+            }
+            let mine = mine.unwrap();
+            let theirs = theirs.unwrap();
+
+            if mine > theirs {
+                return std::cmp::Ordering::Greater;
+            } else if mine < theirs {
+                return std::cmp::Ordering::Less;
+            }
+            i += 1;
         }
     }
 }
 
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(if self.n1 > other.n1 {
-            Ordering::Greater
-        } else if self.n1 < other.n1 {
-            Ordering::Less
-        } else if self.n2 > other.n2 {
-            Ordering::Greater
-        } else if self.n2 < other.n2 {
-            Ordering::Less
-        } else if self.n3 > other.n3 {
-            Ordering::Greater
-        } else if self.n3 < other.n3 {
-            Ordering::Less
-        } else {
-            Ordering::Equal
-        })
+        let mut i = 0;
+        loop {
+            let mine = self.n.get(i);
+            let theirs = other.n.get(i);
+            if mine.is_none() || theirs.is_none() {
+                return Some(Ordering::Equal);
+            }
+            let mine = mine.unwrap();
+            let theirs = theirs.unwrap();
+
+            if mine > theirs {
+                return Some(Ordering::Greater);
+            } else if mine < theirs {
+                return Some(Ordering::Less);
+            }
+            i += 1;
+        }
     }
 }
 
 impl Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.n1, self.n2, self.n3)
+        let mut s = String::new();
+        if self.n.len() < 1 {
+            return write!(f, "0");
+        }
+        s.push_str(&self.n[0].to_string());
+        for (i, e) in self.n.iter().enumerate() {
+            if i.to_owned() == 0 {
+                continue;
+            }
+            s.push_str(&format!(".{}", e.to_string()));
+        }
+        write!(f, "{}", s)
     }
 }
 
-pub fn index_or_err_str(s: &Vec<&str>, i: u32) -> Result<String> {
+pub fn index_or_err_str(s: &Vec<&str>, i: usize) -> Result<String> {
     Ok((s
         .to_owned()
         .get(i as usize)
@@ -339,36 +349,49 @@ depends python version="^8.9.112"
 
     #[test]
     fn test_version_from_str() {
-        assert_eq!(Version::from_str("0.0.0").unwrap(), Version::new(0, 0, 0));
-        assert_eq!(Version::from_str("1.2.3").unwrap(), Version::new(1, 2, 3));
+        assert_eq!(
+            Version::from_str("0.0.0").unwrap(),
+            Version::new(vec![0, 0, 0])
+        );
+        assert_eq!(
+            Version::from_str("1.2.3").unwrap(),
+            Version::new(vec![1, 2, 3])
+        );
         assert_eq!(
             Version::from_str("300.22.11").unwrap(),
-            Version::new(300, 22, 11)
+            Version::new(vec![300, 22, 11])
         );
         assert_eq!(
             Version::from_str("12.11").unwrap(),
-            Version::new(12, 11, 0)
+            Version::new(vec![12, 11])
         );
-        assert_eq!(Version::from_str("531").unwrap(), Version::new(531, 0, 0));
-        assert_eq!(Version::from_str("13.1").unwrap(), Version::new(13, 1, 0));
+        assert_eq!(Version::from_str("531").unwrap(), Version::new(vec![531]));
+        assert_eq!(
+            Version::from_str("13.1").unwrap(),
+            Version::new(vec![13, 1])
+        );
     }
 
     #[test]
     fn test_version_cmp() {
-        assert!(Version::from_str("531").unwrap() > Version::new(0, 531, 0));
-        assert!(Version::new(0, 1, 2) > Version::new(0, 1, 1));
-        assert!(Version::new(6, 5, 4) > Version::new(0, 22, 500));
-        assert!(Version::new(98, 54, 97) == Version::new(98, 54, 97));
-        assert!(Version::new(98, 54, 97) >= Version::new(98, 54, 97));
-        assert!(Version::new(0, 0, 2) < Version::new(0, 0, 3));
-        assert!(!(Version::new(0, 0, 2) < Version::new(0, 0, 2)));
+        assert!(
+            Version::from_str("531").unwrap() > Version::new(vec![0, 531, 0])
+        );
+        assert!(Version::new(vec![0, 1, 2]) > Version::new(vec![0, 1, 1]));
+        assert!(Version::new(vec![6, 5, 4]) > Version::new(vec![0, 22, 500]));
+        assert!(
+            Version::new(vec![98, 54, 97]) == Version::new(vec![98, 54, 97])
+        );
+        assert!(
+            Version::new(vec![98, 54, 97]) >= Version::new(vec![98, 54, 97])
+        );
+        assert!(Version::new(vec![0, 0, 2]) < Version::new(vec![0, 0, 3]));
+        assert!(!(Version::new(vec![0, 0, 2]) < Version::new(vec![0, 0, 2])));
     }
 
     #[test]
     pub fn test_version_invalid() {
         Version::from_str("").expect_err("Input was ''");
-        Version::from_str("531.12.75.22")
-            .expect_err("Input was '531.12.75.22'");
         Version::from_str("45a.22").expect_err("Input was '45a.22'");
     }
 }
