@@ -78,6 +78,10 @@ _Example dpt store_
 
 For each package, when it is ran, an environment is created. Each environment consists of hardlinks to the main files inside the package and it’s dependencies. Each packages environment will also include files specified in the `${dpt_directory}/base` directory. If `${dpt_directory}/base` does not exist or is not a directory then dpt will just give a warning.
 
+### Shared files
+
+Certain programs e.g. Wayland compositors, need to share files or sockets with other programs. It is for this purpose that dpt introduced "plugs". A plug is a specification that a package can give that specifies which of it's files are likely wanted, and a name ascosciated with it. Another package can then specify that it needs to "plug in" to something providing this plug-in. (There cannot be more then one package providing the same plugin in a given dpt configuration)
+
 # Packages
 
 This section defines various properties of packages, as well as their creation.
