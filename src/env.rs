@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, read_link},
+    fs::{self, hard_link, read_link},
     os::unix::fs::symlink,
     path::{Path, PathBuf},
     str::FromStr,
@@ -96,7 +96,7 @@ pub fn generate_environment_for_directory(
                 continue; // Another package with higher priority then us put a file here.
             }
             if source_path.is_file() {
-                symlink(source_path, &target_path).context(anyhow!(
+                hard_link(source_path, &target_path).context(anyhow!(
                     "In creating an symlink for environment [{} -> {}]",
                     source_path.display(),
                     target_path.display()

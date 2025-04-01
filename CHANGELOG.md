@@ -1,4 +1,4 @@
-# Changlog
+# Changelog
 
 - Rename `fpkg` to `dpt`
 
@@ -7,3 +7,5 @@
 - Add `dev-env` command
 
 - Fix issue with accessing base files.
+
+- Hardlink ordinary files.
