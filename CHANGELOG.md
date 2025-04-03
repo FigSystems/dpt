@@ -9,3 +9,5 @@
 - Fix issue with accessing base files.
 
 - Hardlink ordinary files.
+
+- Support multiple packages per DPTBUILD file
