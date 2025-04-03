@@ -139,6 +139,8 @@ For convenience in the process of generating packages, one can write an DPTUILD 
 
 The build will happen in an dpt environment with only the packages specified in the `makedepends` variable, `bash` and `coreutils`.
 
+If `pkgname` is an array, then all of the `build_${pkgname_item}`s will be called with a unique `pkgdir` but the same source directory. e.g. If `pkgname=( test 'test-libs')` then `build_test` and `build_test-libs` will be called in order and packaged individually. If `pkgname` is specified this way, then for each package one can override `pkgver` and `depends` by prefixing them with the package name and replacing `-` with `_`. e.g. `depends` becomes `test_libs_depends`. This functionality is only available if `USE_HOST_TOOLS` is not specified, so far.
+
 ## Repository Format
 
 Repositories are simply http(s) servers with a predefined file structure as follows:
