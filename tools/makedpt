@@ -55,6 +55,7 @@ for x in "${sources[@]}"; do
 done
 
 if [[ -v USE_HOST_TOOLS ]]; then
+  pkgdir="$(mktemp -d)"
   build
   mkdir -p $pkgdir/dpt
   cat <<EOF >$pkgdir/dpt/pkg.kdl
