@@ -74,16 +74,16 @@ else
     for x in "${pkgname[@]}"; do
       pkgdir="$(mktemp -d)"
       formated_x="$(echo -n "$x" | tr '-' '_')"
-      typeset -n tmp_x_ver="${formated_x}_pkgver"
-      typeset -n tmp_x_deps="${formated_x}_depends"
+      typeset -n tmp_x_ver="pkgver_${formated_x}"
+      typeset -n tmp_x_deps="depends_${formated_x}"
 
-      if [[ -v ${formated_x}_depends ]]; then
+      if [[ -v pkgver_${formated_x} ]]; then
         depends_variable=("${tmp_x_deps[@]}")
       else
         depends_variable=("${depends[@]}")
       fi
 
-      if [[ -v ${formated_x}_pkgver ]]; then
+      if [[ -v pkgver_${formated_x} ]]; then
         computed_version="${tmp_x_ver}"
       else
         computed_version="$pkgver"

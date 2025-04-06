@@ -21,7 +21,7 @@ There are a bunch of terms and ideas used in this document.
 - Repository: A location on the internet or locally that provides packages to dpt.
 
 - Dash args: A KDL convention where child nodes named `-` are treated as arrayish. e.g.
-  
+
   ```kdl
   foo {
     - 1
@@ -139,7 +139,7 @@ For convenience in the process of generating packages, one can write an DPTUILD 
 
 The build will happen in an dpt environment with only the packages specified in the `makedepends` variable, `bash` and `coreutils`.
 
-If `pkgname` is an array, then all of the `build_${pkgname_item}`s will be called with a unique `pkgdir` but the same source directory. e.g. If `pkgname=( test 'test-libs')` then `build_test` and `build_test-libs` will be called in order and packaged individually. If `pkgname` is specified this way, then for each package one can override `pkgver` and `depends` by prefixing them with the package name and replacing `-` with `_`. e.g. `depends` becomes `test_libs_depends`. This functionality is only available if `USE_HOST_TOOLS` is not specified, so far.
+If `pkgname` is an array, then all of the `build_${pkgname_item}`s will be called with a unique `pkgdir` but the same source directory. e.g. If `pkgname=( test 'test-libs')` then `build_test` and `build_test-libs` will be called in order and packaged individually. If `pkgname` is specified this way, then for each package one can override `pkgver` and `depends` by prefixing them with the package name and replacing `-` with `_`. e.g. `depends` becomes `depends_test_libs`. This functionality is only available if `USE_HOST_TOOLS` is not specified, so far.
 
 ## Repository Format
 
@@ -147,7 +147,7 @@ Repositories are simply http(s) servers with a predefined file structure as foll
 
 - index.kdl: KDL file with a list of packages and package versions that are contained in this repository.
 
-- *.dpt: All of the compressed dpts on this repository.
+- \*.dpt: All of the compressed dpts on this repository.
 
 index.kdl is made of bunch of package nodes. In each node there is a name value, a version value, and a path value. E.g.
 
@@ -176,7 +176,7 @@ For dependency resolving, dpt uses [PubGrub](https://crates.io/crates/pubgrub) d
 
 When running a package, dpt will bind `/home`, `/dev`, `/mnt`, `/media`, `/run`, `/var`, `/tmp`, `${dpt_directory}` inside the environment. If any conflicts with the aforementioned directories and the directories from the package(s) occur, the package's directories will be given priority. The runtime directory is located at `${dpt_directory}/run`, which is where the environment will be created.
 
-*Example*
+_Example_
 
 ```
 -> = bind mount
@@ -197,7 +197,7 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
 - `packages` An array of packages. Each child's node name is the package name and the next argument, if it exists, will be the version.
 
 - `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The entries (sub nodes) are in the format of
-  
+
   ```kdl
   username \
       "Hashed password" \
@@ -209,7 +209,7 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
   ```
 
 - `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The entries (sub nodes) are in the format of
-  
+
   ```kdl
   groupname gid {
       member1
@@ -218,4 +218,4 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
   }
   ```
 
-- 
+-
