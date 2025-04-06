@@ -1,6 +1,9 @@
 use log::error;
 use nix::mount::MsFlags;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{bail, Context, Result};
 use rand::prelude::*;
@@ -143,21 +146,32 @@ pub fn run_pkg_(
     }
     let mut code: i32 = 0;
     if !cleanup {
-        ctrlc::set_handler(|| {})
-            .context("Failed to register ctrlc singal handler")?;
-        code = std::process::Command::new(std::env::current_exe()?)
-            .arg("chroot-not-intended-for-interactive-use")
-            .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
-                "Failed to parse directory {} into string!",
-                &out_dir.display()
-            ))?)
-            .arg(uid.to_string())
-            .arg(Path::new(prefix).join(&cmd))
-            .args(args)
-            .spawn()?
-            .wait()?
-            .code()
-            .unwrap_or(89);
+        let mut proc = std::process::Command::new(std::env::current_exe()?);
+        let proc: Arc<Mutex<std::process::Child>> = Arc::new(Mutex::new(
+            proc.arg("chroot-not-intended-for-interactive-use")
+                .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
+                    "Failed to parse directory {} into string!",
+                    &out_dir.display()
+                ))?)
+                .arg(uid.to_string())
+                .arg(Path::new(prefix).join(&cmd))
+                .args(args)
+                .spawn()?,
+        ));
+        let proc_arc_clone = Arc::clone(&proc);
+        ctrlc::set_handler(move || {
+            let l = proc_arc_clone.lock();
+            if let Ok(mut x) = l {
+                let _ = x.kill();
+            };
+        })
+        .context("Failed to register ctrlc singal handler")?;
+        let l = proc.lock();
+        if let Ok(mut x) = l {
+            x.wait()?.code().unwrap_or(89);
+        } else {
+            code = 243;
+        }
     }
     let mut binds2: Vec<PathBuf> = Vec::new();
     let mut binds = binds;
