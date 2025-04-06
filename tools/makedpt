@@ -38,7 +38,7 @@ function exit_handling() {
 function deps_to_string_() {
   for x in "${depends_variable[@]}"; do
     name="$(echo -n "$x" | grep -E -o '^[^>=]+')"
-    version="$({ echo -n "$x" | grep -P -o "(?<=$name).*"; } || true)"
+    version="$({ echo -n "$x" | grep -P -o "(?<=$name).*" | sed 's/==//g'; } || true)"
     echo "depends \"${name}\" $(if [ -n "$version" ]; then echo "version=\"$version\""; fi)"
   done
 }
