@@ -31,6 +31,7 @@ trap 'exit_handling' EXIT
 
 function exit_handling() {
   # error handling goes here
+  [ -n "$pkgdir" ] && rm -rf "$pkgdir"
   [ -n "$tmp_dir" ] && rm -rf "$tmp_dir"
 }
 
@@ -71,7 +72,7 @@ else
 
   if declare -p pkgname 2>/dev/null | grep -q '^declare -a'; then
     for x in "${pkgname[@]}"; do
-      tmp_pkgdir="$(mktemp -d)"
+      pkgdir="$(mktemp -d)"
       formated_x="$(echo -n "$x" | tr '-' '_')"
       typeset -n tmp_x_ver="${formated_x}_pkgver"
       typeset -n tmp_x_deps="${formated_x}_depends"
@@ -93,21 +94,21 @@ set -e
 set -u
 
 source "$file"
-pkgdir="$tmp_pkgdir"
+pkgdir="$pkgdir"
 oldpwd="$oldpwd"
 
 build_$x
 EOF
 
-      mkdir -p $tmp_pkgdir/dpt
-      cat <<EOF >$tmp_pkgdir/dpt/pkg.kdl
+      mkdir -p $pkgdir/dpt
+      cat <<EOF >$pkgdir/dpt/pkg.kdl
 name "$x"
 version "$computed_version"
 
 $(deps_to_string_)
 EOF
-      dpt gen-pkg "$tmp_pkgdir" "$oldpwd/$x-$computed_version.dpt"
-      rm -rf "$tmp_pkgdir"
+      dpt gen-pkg "$pkgdir" "$oldpwd/$x-$computed_version.dpt"
+      rm -rf "$pkgdir"
     done
   else
     pkgdir="$(mktemp -d)"
@@ -134,4 +135,5 @@ EOF
   fi
 fi
 cd "$oldpwd"
+rm -rf "$tmp_dir"
 exit 0
