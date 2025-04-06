@@ -269,12 +269,17 @@ pub fn newest_package_from_name(
     package: &str,
     packages: &Vec<OnlinePackage>,
 ) -> Result<OnlinePackage> {
-    let mut newest_version = Version::zero();
+    let mut newest_version: Option<Version> = None;
     let mut newest_package: Option<OnlinePackage> = None;
     for pkg in packages {
         if pkg.name == package {
-            if Version::from_str(&pkg.version)? > newest_version {
-                newest_version = Version::from_str(&pkg.version)?;
+            let greator = if let Some(x) = &newest_version {
+                &Version::from_str(&pkg.version)? > x
+            } else {
+                true
+            };
+            if greator {
+                newest_version = Some(Version::from_str(&pkg.version)?);
                 newest_package = Some(pkg.clone());
             }
         }

@@ -167,11 +167,6 @@ fn main() -> Result<()> {
             write(get_dpt_dir().join("dpt.lock"), dpt_lock.to_string())
                 .context("Failed to write dpt.lock file")?;
         }
-        "list" => {
-            for pkg in get_installed_packages()? {
-                println!("{}-{}", pkg.name, pkg.version);
-            }
-        }
         "run" => {
             if argc < 3 {
                 error!("Not enough arguments!");
