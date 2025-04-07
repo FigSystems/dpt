@@ -77,7 +77,7 @@ else
       typeset -n tmp_x_ver="pkgver_${formated_x}"
       typeset -n tmp_x_deps="depends_${formated_x}"
 
-      if [[ -v pkgver_${formated_x} ]]; then
+      if [[ -v depends_${formated_x} ]]; then
         depends_variable=("${tmp_x_deps[@]}")
       else
         depends_variable=("${depends[@]}")
