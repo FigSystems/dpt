@@ -314,7 +314,9 @@ fn main() -> Result<()> {
             set_effective_uid(get_current_uid())?;
             let mut out_str = String::new();
 
-            let dpts = std::fs::read_dir(".")?
+            let dpts = walkdir::WalkDir::new(".")
+                .follow_links(true)
+                .into_iter()
                 .filter(|x| {
                     x.is_ok()
                         && x.as_ref().unwrap().path().extension().is_some()
@@ -326,7 +328,7 @@ fn main() -> Result<()> {
                             .to_str()
                             == "dpt".into()
                 })
-                .map(|x| x.unwrap().path())
+                .map(|x| x.unwrap().path().to_owned())
                 .collect::<Vec<PathBuf>>();
             for ent in dpts.into_iter().progress().with_style(
                 indicatif::ProgressStyle::default_bar()
