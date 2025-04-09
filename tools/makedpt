@@ -82,12 +82,21 @@ function strip_binaries_and_libraries() {
 		$pkgdir/opt/*/sbin
 	)
 	find ${bindirs[@]} -type f 2>/dev/null | while read binary; do
+		if [ -w "$binary" ]; then
+			PREVIOUSLY_WRITEABLE="true"
+		else
+			chmod u+w "$binary"
+			PREVIOUSLY_WRITEABLE="false"
+		fi
 		case "$(file -biz "$binary")" in
 		*application/x-sharedlib*) # Libraries
 			/usr/bin/strip --strip-debug "$binary" && msg "Stripping $binary" ;;
 		*application/x-executable* | *application/x-pie-executable*) # Binaries
 			/usr/bin/strip "$binary" && msg "Stripping $binary" ;;
 		esac
+		if [ "$PREVIOUSLY_WRITEABLE" == "false" ]; then
+			chmod u-w "$binary"
+		fi
 	done
 }
 
