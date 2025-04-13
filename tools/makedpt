@@ -66,6 +66,9 @@ EOF
 
 function strip_binaries_and_libraries() {
 	# Modified from arch linux's makepkg script
+	if [ -v NO_STRIP_BINARIES ]; then
+		return
+	fi
 	local binary bindirs
 	bindirs=(
 		$pkgdir/bin
