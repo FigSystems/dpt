@@ -66,7 +66,7 @@ EOF
 
 function strip_binaries_and_libraries() {
 	# Modified from arch linux's makepkg script
-	if [ -v NO_STRIP_BINARIES ]; then
+	if [[ -v NO_STRIP_BINARIES ]]; then
 		return
 	fi
 	local binary bindirs
@@ -105,10 +105,18 @@ function strip_binaries_and_libraries() {
 
 cd "$tmp_dir"
 
+msg "Fetching sources"
 for x in "${sources[@]}"; do
 	wget -q --show-progress "$x"
 	tar -xf "${x##*/}" &>/dev/null || true
 done
+
+if [[ -v files ]]; then
+	msg "Copying files"
+	for x in "${files[@]}"; do
+		cp -rax "$(dirname "$file")/$x" "$x"
+	done
+fi
 
 if [[ -v USE_HOST_TOOLS ]]; then
 	pkgdir="$(mktemp -d)"
