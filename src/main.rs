@@ -26,6 +26,7 @@ use std::{
     path::{Path, PathBuf},
     process::exit,
     str::FromStr,
+    sync::{Arc, Mutex},
 };
 
 use base::rebuild_base;
@@ -419,17 +420,25 @@ fn main() -> Result<()> {
                     p.arg(a);
                 }
             }
+            let p: Arc<Mutex<std::process::Child>> =
+                Arc::new(Mutex::new(p.spawn()?));
 
-            let exit_code = p
-                .spawn()
-                .context("In spawning")?
-                .wait()
-                .context("In waiting")?;
-            exit(
-                exit_code.code().ok_or(anyhow::anyhow!(
-                    "Failed to get process exit code!"
-                ))?,
-            );
+            let proc_arc_clone = Arc::clone(&p);
+            ctrlc::set_handler(move || {
+                let l = proc_arc_clone.lock();
+                if let Ok(mut x) = l {
+                    let _ = x.kill();
+                };
+            })
+            .context("Failed to register ctrlc singal handler")?;
+            let l = p.lock();
+            let exit_code = if let Ok(mut x) = l {
+                x.wait()?.code().unwrap_or(89)
+            } else {
+                243
+            };
+
+            exit(exit_code);
         }
         cmd => {
             error!("Unknown command {}!", cmd);
