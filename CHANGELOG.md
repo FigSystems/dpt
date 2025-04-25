@@ -13,3 +13,5 @@
 - Support multiple packages per DPTBUILD file
 
 - Softer termination of programs when Ctrl-C is issued
+
+- Proper dependency resolution

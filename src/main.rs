@@ -41,7 +41,7 @@ use pkg::{
     decompress_pkg_read, get_package_config, string_to_package, Package,
 };
 use repo::{
-    get_all_available_packages, install_pkg_and_dependencies,
+    get_all_available_packages, install_pkgs_and_dependencies,
     newest_package_from_name, package_to_onlinepackage, InstallResult,
     OnlinePackage,
 };
@@ -137,21 +137,23 @@ fn main() -> Result<()> {
         "rebuild" => {
             command_requires_root_uid();
             let dpt = read_dpt_file()?;
-            let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
             let repo_packages = get_all_available_packages()?;
 
-            for package in dpt.packages.iter() {
-                install_pkg_and_dependencies(
-                    &newest_package_from_name(&package.name, &repo_packages)
-                        .context(anyhow!(
-                            "Package {} is not found in repository!",
-                            package
-                        ))?,
-                    &repo_packages,
-                    &mut done_list,
-                    false,
-                )?;
-            }
+            let done_list = install_pkgs_and_dependencies(
+                &dpt.packages
+                    .iter()
+                    .map(|package| {
+                        newest_package_from_name(&package.name, &repo_packages)
+                            .context(anyhow!(
+                                "Package {} is not found in repository!",
+                                package
+                            ))
+                            .unwrap()
+                    })
+                    .collect(),
+                &repo_packages,
+                false,
+            )?;
 
             rebuild_base(&dpt).context("Failed to build base!")?;
 
@@ -162,9 +164,9 @@ fn main() -> Result<()> {
 
             let done_list = remove_duplicates(done_list);
             for x in done_list {
-                let mut node = KdlNode::new(x.0.name);
+                let mut node = KdlNode::new(x.name);
                 node.entries_mut()
-                    .push(KdlEntry::new(KdlValue::String(x.0.version)));
+                    .push(KdlEntry::new(KdlValue::String(x.version)));
                 packages_doc.nodes_mut().push(node);
             }
 
@@ -285,16 +287,21 @@ fn main() -> Result<()> {
                 packages_to_run.push(version);
             }
 
-            let mut done_list: Vec<(OnlinePackage, InstallResult)> = Vec::new();
-
-            for package in packages_to_run.iter() {
-                install_pkg_and_dependencies(
-                    &package_to_onlinepackage(&package, &packages)?,
-                    &packages,
-                    &mut done_list,
-                    false,
-                )?;
-            }
+            install_pkgs_and_dependencies(
+                &packages_to_run
+                    .iter()
+                    .map(|package| {
+                        package_to_onlinepackage(&package, &packages)
+                            .context(anyhow!(
+                                "Package {} is not found on the filesystem!",
+                                package.name
+                            ))
+                            .unwrap()
+                    })
+                    .collect(),
+                &packages,
+                false,
+            )?;
 
             let mut run_args = Vec::<String>::new();
             if argc > 3 {

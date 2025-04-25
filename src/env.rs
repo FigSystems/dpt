@@ -12,65 +12,39 @@ use walkdir::WalkDir;
 use crate::{
     pkg::Package,
     repo::{
-        package_to_onlinepackage, resolve_dependencies_for_package,
+        package_to_onlinepackage, resolve_dependencies_for_packages,
         OnlinePackage,
     },
     store::get_dpt_dir,
 };
 
 /// Generates the environment for a package, version solving to find dependencies.
-pub fn generate_environment_for_package(
-    pkg: &Package,
+pub fn generate_environment_for_packages(
+    pkgs_selected: &Vec<Package>,
     pkgs: &Vec<OnlinePackage>,
     out_path: &Path,
-    done_list: &mut Vec<Package>,
 ) -> Result<()> {
-    let package = package_to_onlinepackage(pkg, pkgs)?;
-    let pkg_dir = PathBuf::from_str(&package.url)?;
-    let pkg_data_dir = pkg_dir;
-
-    pkg_data_dir.metadata().context(format!(
-        "Package directory '{}' does not exist!",
-        pkg_data_dir.display()
-    ))?;
-
-    if done_list.is_empty() {
-        if let Ok(x) = std::fs::exists(out_path) {
-            if x {
-                std::fs::remove_dir_all(out_path)?;
-            }
-        }
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .create(out_path)?;
-        if get_dpt_dir().join("base").is_dir() {
-            generate_environment_for_directory(
-                &get_dpt_dir().join("base"),
-                &out_path,
-            )?;
-        } else {
-            warn!("`base` is not found!");
+    let packages_resolved =
+        resolve_dependencies_for_packages(&pkgs, &pkgs_selected)?;
+    if let Ok(x) = std::fs::exists(out_path) {
+        if x {
+            std::fs::remove_dir_all(out_path)?;
         }
     }
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(out_path)?;
+    if get_dpt_dir().join("base").is_dir() {
+        generate_environment_for_directory(
+            &get_dpt_dir().join("base"),
+            &out_path,
+        )?;
+    } else {
+        warn!("`base` is not found!");
+    }
 
-    generate_environment_for_directory(&pkg_data_dir, &out_path)?;
-
-    done_list.push(pkg.clone());
-
-    // Convert dependencies into packages by version solving
-    let dependencies = resolve_dependencies_for_package(&pkgs, pkg)
-        .context(anyhow!("Failed to resolve dependencies"))?;
-
-    for dependency in dependencies {
-        if done_list.contains(&dependency.clone().to_package()) {
-            continue;
-        }
-        let p = Package {
-            name: dependency.name,
-            version: dependency.version,
-        };
-        generate_environment_for_package(&p, pkgs, out_path, done_list)?;
-        done_list.push(p);
+    for x in packages_resolved {
+        generate_environment_for_directory(Path::new(&x.url), &out_path)?;
     }
 
     Ok(())

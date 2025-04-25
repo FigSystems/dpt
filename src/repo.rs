@@ -9,6 +9,7 @@ use pubgrub::PubGrubError;
 use pubgrub::Ranges;
 use pubgrub::{DefaultStringReporter, Reporter};
 use reqwest::blocking::Client;
+use std::borrow::Borrow;
 use std::fmt::{self, Display};
 use std::fs::DirBuilder;
 use std::io::Read;
@@ -291,17 +292,37 @@ pub fn newest_package_from_name(
 }
 
 /// Finds all of the packages that are required to install this package
-pub fn resolve_dependencies_for_package(
+pub fn resolve_dependencies_for_packages(
     packages: &Vec<OnlinePackage>,
-    package: &Package,
+    packages_selected: &Vec<Package>,
 ) -> Result<Vec<OnlinePackage>> {
-    let dependency_provider = get_dependency_provider_for_packages(&packages)?;
-    package_to_onlinepackage(&package, &packages)?; // Verify that the package exits in the package vec
+    let mut dependency_provider =
+        get_dependency_provider_for_packages(&packages)?;
+
+    for x in packages_selected {
+        package_to_onlinepackage(&x, &packages)?; // Verify that the package exits in the package vec
+        if Version::from_str(x.version.as_str()).is_err() {
+            bail!("Invalid version '{}'!", x.version);
+        }
+    }
+
+    dependency_provider.add_dependencies(
+        "world".to_string(),
+        Version::new(vec![1, 0, 0]),
+        packages_selected.iter().map(|x| {
+            (
+                x.name.clone(),
+                Ranges::singleton(
+                    Version::from_str(x.version.as_str()).unwrap(),
+                ),
+            )
+        }),
+    );
 
     let resolved = pubgrub::resolve(
         &dependency_provider,
-        package.name.clone(),
-        Version::from_str(package.version.as_str())?,
+        "world".to_string(),
+        Version::new(vec![1, 0, 0]),
     );
 
     let resolved = match resolved {
@@ -317,6 +338,9 @@ pub fn resolve_dependencies_for_package(
 
     // Locate actual online packages from the resulting package list
     for (name, version) in resolved {
+        if name == "world" {
+            continue;
+        }
         ret.push(package_to_onlinepackage(
             &Package {
                 name,
@@ -358,30 +382,24 @@ pub fn install_pkg(
 }
 
 /// Install a package and all of it's dependencies into the pool
-pub fn install_pkg_and_dependencies(
-    pkg: &OnlinePackage,
+pub fn install_pkgs_and_dependencies(
+    pkgs_selected: &Vec<OnlinePackage>,
     pkgs: &Vec<OnlinePackage>,
-    done_list: &mut Vec<(OnlinePackage, InstallResult)>,
     reinstall: bool,
-) -> Result<()> {
-    let ires = install_pkg(pkg, reinstall)?;
-    done_list.push((pkg.clone(), ires));
-    let dependencies =
-        resolve_dependencies_for_package(&pkgs, &pkg.clone().to_package())?;
-
-    for depends in dependencies {
-        if done_list
+) -> Result<Vec<OnlinePackage>> {
+    let packages_resolved = resolve_dependencies_for_packages(
+        &pkgs,
+        &pkgs_selected
             .iter()
-            .map(|x| &x.0)
-            .collect::<Vec<&OnlinePackage>>()
-            .contains(&&depends)
-        {
-            continue;
-        }
-        install_pkg_and_dependencies(&depends, pkgs, done_list, false)?;
+            .map(|x| x.clone().to_package())
+            .collect::<Vec<Package>>(),
+    )?;
+
+    for package in packages_resolved.iter() {
+        install_pkg(&package, reinstall)?;
     }
 
-    Ok(())
+    Ok(packages_resolved)
 }
 
 #[cfg(test)]

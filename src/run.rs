@@ -223,21 +223,17 @@ pub fn run_multiple_packages(
     }
     let pkg_path = pkg_path;
 
-    let mut done_list: Vec<Package> = Vec::new();
     let installed_packages = if allow_non_dpt_file == false {
         get_installed_packages()?
     } else {
         get_installed_packages_without_dpt_file()?
     };
 
-    for pkg in pkgs {
-        crate::env::generate_environment_for_package(
-            pkg,
-            &installed_packages,
-            &pkg_path,
-            &mut done_list,
-        )?;
-    }
+    crate::env::generate_environment_for_packages(
+        pkgs,
+        &installed_packages,
+        &pkg_path,
+    )?;
 
     let cmd = cmd.unwrap_or(&pkgs[0].name);
 
