@@ -473,12 +473,12 @@ package name=example version="1.2.3" path="my-pkg.dpt" {
             },
         ];
 
-        let resolved = resolve_dependencies_for_package(
+        let resolved = resolve_dependencies_for_packages(
             &packages,
-            &Package {
+            &vec![Package {
                 name: "goal".to_string(),
                 version: "7.8.9".to_string(),
-            },
+            }],
         )
         .unwrap();
 
