@@ -9,7 +9,6 @@ use pubgrub::PubGrubError;
 use pubgrub::Ranges;
 use pubgrub::{DefaultStringReporter, Reporter};
 use reqwest::blocking::Client;
-use std::borrow::Borrow;
 use std::fmt::{self, Display};
 use std::fs::DirBuilder;
 use std::io::Read;

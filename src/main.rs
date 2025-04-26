@@ -42,8 +42,7 @@ use pkg::{
 };
 use repo::{
     get_all_available_packages, install_pkgs_and_dependencies,
-    newest_package_from_name, package_to_onlinepackage, InstallResult,
-    OnlinePackage,
+    newest_package_from_name, package_to_onlinepackage, OnlinePackage,
 };
 use run::run_multiple_packages;
 use store::{get_dpt_dir, get_installed_packages};

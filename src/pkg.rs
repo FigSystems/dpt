@@ -85,6 +85,7 @@ impl Version {
         Version { n }
     }
 
+    #[allow(dead_code)]
     pub fn zero() -> Self {
         Version::new(vec![0])
     }

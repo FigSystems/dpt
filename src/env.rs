@@ -1,8 +1,7 @@
 use std::{
     fs::{self, hard_link, read_link},
     os::unix::fs::symlink,
-    path::{Path, PathBuf},
-    str::FromStr,
+    path::Path,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -11,10 +10,7 @@ use walkdir::WalkDir;
 
 use crate::{
     pkg::Package,
-    repo::{
-        package_to_onlinepackage, resolve_dependencies_for_packages,
-        OnlinePackage,
-    },
+    repo::{resolve_dependencies_for_packages, OnlinePackage},
     store::get_dpt_dir,
 };
 
