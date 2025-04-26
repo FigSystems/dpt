@@ -15,3 +15,5 @@
 - Softer termination of programs when Ctrl-C is issued
 
 - Proper dependency resolution
+
+- Fix inaccurate exit codes for programs.

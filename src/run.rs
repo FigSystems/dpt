@@ -165,10 +165,10 @@ pub fn run_pkg_(
                 let _ = x.kill();
             };
         })
-        .context("Failed to register ctrlc singal handler")?;
+        .context("Failed to register ctrlc signal handler")?;
         let l = proc.lock();
         if let Ok(mut x) = l {
-            x.wait()?.code().unwrap_or(89);
+            code = x.wait()?.code().unwrap_or(89);
         } else {
             code = 243;
         }
