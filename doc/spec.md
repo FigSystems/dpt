@@ -86,6 +86,15 @@ Dpt glues are small wrappers that fulfill some requirement of a given package. A
 
 - `glob [globs]` Creates hard-links from all files matching this glob in other packages into the current environment.
 
+To specify glues for a package, specify your intended glue and arguments on a `glue` node. e.g.
+
+```kdl
+glue bin
+glue glob /usr/lib/systemd/system/*
+```
+
+
+
 # Packages
 
 This section defines various properties of packages, as well as their creation.
@@ -221,5 +230,3 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
       ...
   }
   ```
-
--
