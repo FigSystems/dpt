@@ -21,7 +21,7 @@ There are a bunch of terms and ideas used in this document.
 - Repository: A location on the internet or locally that provides packages to dpt.
 
 - Dash args: A KDL convention where child nodes named `-` are treated as arrayish. e.g.
-
+  
   ```kdl
   foo {
     - 1
@@ -78,9 +78,13 @@ _Example dpt store_
 
 For each package, when it is ran, an environment is created. Each environment consists of hardlinks to the main files inside the package and it’s dependencies. Each packages environment will also include files specified in the `${dpt_directory}/base` directory. If `${dpt_directory}/base` does not exist or is not a directory then dpt will just give a warning.
 
-### Shared files
+### Glue
 
-Certain programs e.g. Wayland compositors, need to share files or sockets with other programs. It is for this purpose that dpt introduced "plugs". A plug is a specification that a package can give that specifies which of it's files are likely wanted, and a name ascosciated with it. Another package can then specify that it needs to "plug in" to something providing this plug-in. (There cannot be more then one package providing the same plugin in a given dpt configuration)
+Dpt glues are small wrappers that fulfill some requirement of a given package. Available glues are
+
+- `bin`: Creates small wrappers in the `/usr/bin` directory for all other packages in the dptfile.
+
+- `glob [globs]` Creates hard-links from all files matching this glob in other packages into the current environment.
 
 # Packages
 
@@ -197,7 +201,7 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
 - `packages` An array of packages. Each child's node name is the package name and the next argument, if it exists, will be the version.
 
 - `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The entries (sub nodes) are in the format of
-
+  
   ```kdl
   username \
       "Hashed password" \
@@ -209,7 +213,7 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and i
   ```
 
 - `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The entries (sub nodes) are in the format of
-
+  
   ```kdl
   groupname gid {
       member1
