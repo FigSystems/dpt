@@ -45,7 +45,7 @@ use repo::{
     newest_package_from_name, package_to_onlinepackage, OnlinePackage,
 };
 use run::run_multiple_packages;
-use store::{get_dpt_dir, get_installed_packages};
+use store::{get_dpt_dir, get_installed_packages, get_package_for_bin};
 use uzers::{
     self, get_current_uid, get_effective_uid,
     switch::{set_current_uid, set_effective_uid},
@@ -81,14 +81,32 @@ fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<String>>();
     let argc = std::env::args().count();
 
-    if argc < 2 {
-        error!("Not enough arguments!");
-        print_help();
+    if get_effective_uid() != 0 {
+        error!("FPKG needs to be installed setuid or run as root!");
         exit(exitcode::USAGE);
     }
 
-    if get_effective_uid() != 0 {
-        error!("FPKG needs to be installed setuid or run as root!");
+    let me = args[0]
+        .split("/")
+        .last()
+        .context("Failed to get last part of $0 !")?;
+    if me != "dpt" {
+        let packages = get_installed_packages()?;
+        let pkg = get_package_for_bin(me, &packages)?;
+        let uid = get_current_uid();
+        set_current_uid(0)?;
+        exit(run::run_pkg(
+            &pkg.to_package(),
+            uid,
+            args[1..].to_vec(),
+            Some(me),
+            false,
+        )?);
+    }
+
+    if argc < 2 {
+        error!("Not enough arguments!");
+        print_help();
         exit(exitcode::USAGE);
     }
 

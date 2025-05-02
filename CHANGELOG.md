@@ -17,3 +17,5 @@
 - Proper dependency resolution
 
 - Fix inaccurate exit codes for programs.
+
+- Packages can be run by setting $0 of the dpt process to a different value.

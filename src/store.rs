@@ -1,11 +1,12 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::dpt_file::read_dpt_lock_file;
 use crate::pkg::{get_package_config, Package};
 use crate::repo::OnlinePackage;
-use anyhow::{anyhow, Result};
+use crate::run::join_proper;
+use anyhow::{anyhow, bail, Result};
 
 pub fn get_dpt_dir() -> PathBuf {
     if let Ok(x) = fs::read_to_string("/etc/dpt/dir") {
@@ -76,4 +77,19 @@ pub fn get_installed_packages() -> Result<Vec<OnlinePackage>> {
         })
         .map(|x| x.to_owned())
         .collect::<Vec<OnlinePackage>>())
+}
+
+pub fn get_package_for_bin(
+    name: &str,
+    pkgs: &Vec<OnlinePackage>,
+) -> Result<OnlinePackage> {
+    for pkg in pkgs {
+        let p = Path::new(&pkg.url);
+        for bindir in vec!["usr/bin", "bin"] {
+            if join_proper(&p.join(bindir), Path::new(name))?.is_file() {
+                return Ok(pkg.clone());
+            }
+        }
+    }
+    bail!("No package found with binary '{name}'!");
 }
