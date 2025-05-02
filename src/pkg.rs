@@ -38,11 +38,18 @@ impl PartialEq for Dependency {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Glue {
+    Bin,
+    Glob(Vec<String>),
+}
+
 #[derive(Debug)]
 pub struct PackageConfig {
     pub name: String,
     pub version: String,
     pub depends: Vec<Dependency>,
+    pub glue: Vec<Glue>,
 }
 
 impl PartialEq for PackageConfig {
@@ -189,32 +196,59 @@ pub fn get_package_config(file: &str) -> Result<PackageConfig> {
     let version = get_kdl_value_string(&doc, "version")?;
 
     let depends = parse_depends(&doc)?;
+    let glue = parse_glue(&doc)?;
     Ok(PackageConfig {
         name,
         version,
         depends,
+        glue,
     })
+}
+
+pub fn parse_glue(doc: &KdlDocument) -> Result<Vec<Glue>> {
+    let mut ret: Vec<Glue> = Vec::new();
+    for x in doc.nodes() {
+        if x.name().value() == "glue" {
+            let entries = x.entries();
+
+            if entries[0].value().as_string().is_none() {
+                bail!("type of glue specified is not a string!");
+            }
+            for y in entries {
+                if y.name().is_some() {
+                    bail!("Unexpected property in glue item!");
+                }
+            }
+
+            let glue_type = match entries[0].value().as_string().unwrap() {
+                "bin" => Glue::Bin,
+                "glob" => {
+                    let mut v: Vec<String> =
+                        Vec::with_capacity(entries.len() - 2);
+                    for y in &entries[2..] {
+                        if let Some(x) = y.value().as_string() {
+                            v.push(x.to_string());
+                        } else {
+                            bail!("Argument to glue glob item is not a string!")
+                        }
+                    }
+                    Glue::Glob(v)
+                }
+                x => {
+                    bail!("Unexpected type of glue '{x}'!");
+                }
+            };
+            ret.push(glue_type);
+        }
+    }
+    Ok(ret)
 }
 
 /// Parse a kdl document, bailing if invalid
 pub fn parse_kdl(file: &str) -> Result<KdlDocument> {
     let doc: Result<KdlDocument, KdlError> = file.parse();
-    if let Err(e) = doc {
-        let diagnostics = e
-            .diagnostics
-            .into_iter()
-            .map(|x| {
-                let a = x.to_string();
-                let b = x.help.unwrap_or("None".to_string());
-                format!("{} help: {}\n", a, b)
-            })
-            .collect::<Vec<String>>()
-            .concat();
-        bail!(
-            "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
-            file,
-            diagnostics
-        );
+    if let Err(_) = doc {
+        bail!("Failed to parse KDL document: {}\n", file);
     }
     let doc = doc;
     match doc {
@@ -311,6 +345,9 @@ version "145.54.12"
 
 depends "coreutils"
 depends python version="^8.9.112"
+
+glue bin
+glue glob "/usr/lib/systemd/system/*.service" "/usr/lib/systemd/system/*.socket"
 "###;
         let expected = PackageConfig {
             name: "abcd".to_string(),
@@ -324,6 +361,13 @@ depends python version="^8.9.112"
                     name: "python".to_string(),
                     version_mask: "^8.9.112".to_string(),
                 },
+            ],
+            glue: vec![
+                Glue::Bin,
+                Glue::Glob(vec![
+                    "/usr/lib/systemd/system/*.service".to_string(),
+                    "/usr/lib/systemd/system/*.socket".to_string(),
+                ]),
             ],
         };
         let x = get_package_config(s).unwrap();

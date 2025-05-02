@@ -1,7 +1,7 @@
 use std::{
     fs::{self, hard_link, read_link},
     os::unix::fs::symlink,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -9,8 +9,9 @@ use log::warn;
 use walkdir::WalkDir;
 
 use crate::{
-    pkg::Package,
+    pkg::{self, Glue, Package},
     repo::{resolve_dependencies_for_packages, OnlinePackage},
+    run::join_proper,
     store::get_dpt_dir,
 };
 
@@ -39,10 +40,64 @@ pub fn generate_environment_for_packages(
         warn!("`base` is not found!");
     }
 
+    let mut glues: Vec<Glue> = Vec::new();
+    let mut pkg_dirs: Vec<PathBuf> = Vec::new();
     for x in packages_resolved {
-        generate_environment_for_directory(Path::new(&x.url), &out_path)?;
+        let config =
+            pkg::get_package_config(&std::fs::read_to_string(&x.url)?)?;
+        for glue in config.glue {
+            if glues.contains(&glue) {
+                continue;
+            }
+            glues.push(glue);
+        }
+        let p = Path::new(&x.url);
+        generate_environment_for_directory(p, &out_path)?;
+        pkg_dirs.push(p.to_path_buf());
     }
 
+    for glue in glues {
+        generate_glue_for_directory(&glue, &pkg_dirs, &out_path)?;
+    }
+
+    Ok(())
+}
+
+pub fn generate_glue_for_directory(
+    glue: &Glue,
+    pkg_dirs: &Vec<PathBuf>,
+    out_path: &Path,
+) -> Result<()> {
+    match glue {
+        Glue::Bin => {}
+        Glue::Glob(x) => {
+            for dir in pkg_dirs {
+                for g in x {
+                    for f in glob::glob(
+                        join_proper(&dir, &Path::new(&g))?
+                            .to_str()
+                            .ok_or(anyhow!("Improper characters in glob!"))?,
+                    )? {
+                        if let Ok(file) = &f {
+                            if !Path::new(file).is_file() {
+                                continue;
+                            }
+                            let source = file;
+                            let target = out_path
+                                .join(Path::new(&file).strip_prefix(&dir)?);
+                            std::fs::hard_link(&source, &target).context(
+                                anyhow!(
+                                    "Failed to hardlink {:?} -> {:?}!",
+                                    source,
+                                    target
+                                ),
+                            )?;
+                        }
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 
