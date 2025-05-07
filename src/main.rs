@@ -90,7 +90,10 @@ fn main() -> Result<()> {
         .split("/")
         .last()
         .context("Failed to get last part of $0 !")?;
-    if me != "dpt" {
+    if me != "dpt"
+        && args.get(1)
+            != Some(&"chroot-not-intended-for-interactive-use".to_string())
+    {
         let packages = get_installed_packages()?;
         let pkg = get_package_for_bin(me, &packages)?;
         let uid = get_current_uid();
