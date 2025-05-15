@@ -10,7 +10,6 @@ ctrlc = "3.4.5"
 exitcode = "1.1.2"
 glob = "0.3.2"
 indicatif = "0.17.11"
-kdl = "6.3.3"
 log = "0.4.25"
 nix = { version = "0.30.0", features = ["mount"] }
 pathdiff = "0.2.3"
@@ -20,6 +19,8 @@ reqwest = { version = "0.12.12", features = [
     "rustls-tls",
     "blocking",
 ], default-features = false }
+ron = "0.10.1"
+serde = { version = "1.0.219", features = ["derive"] }
 sys-mount = "3.0.1"
 tar = "0.4.43"
 uzers = "0.12.1"

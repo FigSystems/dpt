@@ -43,7 +43,7 @@ pub fn generate_environment_for_packages(
     let mut glues: Vec<Glue> = Vec::new();
     for x in packages_resolved {
         let config = crate::pkg::get_package_config(&std::fs::read_to_string(
-            Path::new(&x.url).join("dpt/pkg.kdl"),
+            Path::new(&x.url).join("dpt/pkg.ron"),
         )?)?;
         for glue in config.glue {
             if glues.contains(&glue) {

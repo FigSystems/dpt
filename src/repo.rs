@@ -3,12 +3,12 @@ use crate::pkg::Version;
 use anyhow::Context;
 use anyhow::{bail, Result};
 use indicatif::{ProgressBar, ProgressStyle};
-use kdl::{KdlDocument, KdlError, KdlNode};
 use pubgrub::OfflineDependencyProvider;
 use pubgrub::PubGrubError;
 use pubgrub::Ranges;
 use pubgrub::{DefaultStringReporter, Reporter};
 use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::fs::DirBuilder;
 use std::io::Read;
@@ -19,7 +19,7 @@ use crate::store::get_store_location;
 
 type VersionSet = Ranges<Version>;
 
-#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq, Serialize, Deserialize)]
 pub struct OnlinePackage {
     pub name: String,
     pub version: String,
@@ -45,6 +45,11 @@ impl OnlinePackage {
             version: self.version,
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RepositoryIndex {
+    pub packages: Vec<OnlinePackage>,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -110,24 +115,6 @@ pub fn fetch_file(url: &str) -> Result<Vec<u8>> {
     Ok(buffer)
 }
 
-/// Finds a string property that is a subnode of `node`
-pub fn get_kdl_string_prop(prop_name: &str, node: &KdlNode) -> Result<String> {
-    let name = match node.get(prop_name) {
-        Some(x) => x,
-        None => {
-            bail!(
-                "Package specification does not have a {} property!",
-                prop_name
-            );
-        }
-    };
-    let name = match name.as_string() {
-        Some(x) => x.to_string(),
-        None => bail!("Property {} is not a string!", prop_name),
-    };
-    Ok(name)
-}
-
 /// Adds a component onto the end of a URL
 pub fn push_onto_url(base: &str, ext: &str) -> String {
     if base.chars().last() == Some('/') || ext.chars().next() == Some('/') {
@@ -142,52 +129,14 @@ pub fn parse_repository_index(
     index: &str,
     base_url: &str,
 ) -> Result<Vec<OnlinePackage>> {
-    let doc: Result<KdlDocument, KdlError> = index.parse();
-    if let Err(e) = doc {
-        let diagnostics = e
-            .diagnostics
-            .into_iter()
-            .map(|x| {
-                let a = x.to_string();
-                let b = x.help.unwrap_or("None".to_string());
-                format!("{} help: {}\n", a, b)
-            })
-            .collect::<Vec<String>>()
-            .concat();
-        bail!(
-            "Failed to parse KDL document: {}\n\n diagnostics: \n{}",
-            index,
-            diagnostics
-        );
-    }
-    let doc = doc.unwrap();
-
-    let mut ret: Vec<OnlinePackage> = Vec::new();
-    for pkg in doc.nodes() {
-        if pkg.name().to_string() != "package" {
+    let mut doc: RepositoryIndex = ron::from_str(index)?;
+    for x in doc.packages.iter_mut() {
+        if x.url.starts_with("https://") || x.url.starts_with("http://") {
             continue;
         }
-
-        let name = get_kdl_string_prop("name", pkg)?;
-        let version = get_kdl_string_prop("version", pkg)?;
-        let url =
-            push_onto_url(base_url, get_kdl_string_prop("path", pkg)?.as_str());
-
-        let children = pkg.children();
-
-        let mut depends: Vec<Dependency> = Vec::new();
-
-        if let Some(document) = children {
-            depends = crate::pkg::parse_depends(&document)?;
-        }
-        ret.push(OnlinePackage {
-            name,
-            version,
-            url,
-            depends,
-        });
+        x.url = push_onto_url(base_url, &x.url);
     }
-    Ok(ret)
+    Ok(doc.packages)
 }
 
 /// Get all packages that are available on all repositories
@@ -196,7 +145,7 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
 
     let mut ret: Vec<OnlinePackage> = Vec::new();
     for repo in repos {
-        let index = fetch_file(&push_onto_url(repo.as_str(), "index.kdl"))?;
+        let index = fetch_file(&push_onto_url(repo.as_str(), "index.ron"))?;
         let index = std::str::from_utf8(&index)?;
         let mut packages = parse_repository_index(index, &repo)?;
         ret.append(&mut packages);
@@ -230,7 +179,7 @@ pub fn get_dependency_provider_for_packages(
     for pkg in packages {
         let mut depends = Vec::<(String, VersionSet)>::new();
         for dep in &pkg.depends {
-            let version = parse_version_range(&dep.version_mask)?;
+            let version = parse_version_range(&dep.version)?;
 
             depends.push((dep.name.clone(), version));
         }
@@ -409,11 +358,31 @@ mod tests {
     #[test]
     fn parse_repository_index_1() {
         let index = r###"
-package name=test version="9.11.14" path="/test.dpt"
-package name=example version="1.2.3" path="my-pkg.dpt" {
-    depends example1
-    depends example2 version="^10.2.0"
-}
+(
+    packages: [
+        (
+            name: "test",
+            version: "9.11.14",
+            url: "/test.dpt",
+            depends: []
+        ),
+        (
+            name: "example",
+            version: "1.2.3",
+            url: "my-pkg.dpt",
+            depends: [
+                (
+                    name: "example1",
+                    version: ""
+                ),
+                (
+                    name: "example2",
+                    version: "^10.2.0"
+                )
+            ]
+        )
+    ]
+)
             "###;
         let x =
             parse_repository_index(index, "https://my.repo.here/dpt").unwrap();
@@ -431,11 +400,11 @@ package name=example version="1.2.3" path="my-pkg.dpt" {
                 depends: vec![
                     Dependency {
                         name: "example1".to_string(),
-                        version_mask: "".to_string(),
+                        version: "".to_string(),
                     },
                     Dependency {
                         name: "example2".to_string(),
-                        version_mask: "^10.2.0".to_string(),
+                        version: "^10.2.0".to_string(),
                     },
                 ],
             },
@@ -459,7 +428,7 @@ package name=example version="1.2.3" path="my-pkg.dpt" {
                 url: "https://my.repo.pkg/dpt/2.dpt".to_string(),
                 depends: vec![Dependency {
                     name: "1".to_string(),
-                    version_mask: ">=1.0.0".to_string(),
+                    version: ">=1.0.0".to_string(),
                 }],
             },
             OnlinePackage {
@@ -468,7 +437,7 @@ package name=example version="1.2.3" path="my-pkg.dpt" {
                 url: "https://my.repo.pkg/dpt/goal.dpt".to_string(),
                 depends: vec![Dependency {
                     name: "2".to_string(),
-                    version_mask: ">4.5.0".to_string(),
+                    version: ">4.5.0".to_string(),
                 }],
             },
         ];

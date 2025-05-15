@@ -1,154 +1,37 @@
 use std::path::PathBuf;
 
-use anyhow::anyhow;
-use anyhow::bail;
-use anyhow::Context;
-use anyhow::Result;
-use kdl::KdlDocument;
-use kdl::KdlEntry;
-use kdl::KdlNode;
-use kdl::KdlValue;
-
-use crate::pkg::parse_kdl;
 use crate::pkg::Package;
 use crate::store::get_dpt_dir;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct User {
     pub username: String,
     pub password: String,
     pub uid: u64,
     pub gid: u64,
     pub gecos: String,
-    pub home_dir: String,
+    pub home: String,
     pub shell: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Group {
     pub groupname: String,
     pub gid: u64,
     pub members: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DptFile {
     pub packages: Vec<Package>,
     pub users: Vec<User>,
     pub groups: Vec<Group>,
 }
 
-fn kdlvalue_as_string(v: &KdlValue, n: &str) -> Result<String> {
-    Ok(v.as_string()
-        .ok_or(anyhow!("Value {n} is not a string!"))?
-        .to_string())
-}
-
-fn kdlvalue_as_u64(v: &KdlValue, n: &str) -> Result<u64> {
-    Ok(v.as_integer()
-        .ok_or(anyhow!("Value {n} is not an integer!"))?
-        .try_into()
-        .context("In converting an integer in the dpt file to a u64")?)
-}
-
-pub fn parse_dpt_file(file: &KdlDocument) -> Result<DptFile> {
-    let mut packages: Vec<Package> = Vec::new();
-    let mut users: Vec<User> = Vec::new();
-    let mut groups: Vec<Group> = Vec::new();
-    for x in file
-        .get("packages")
-        .unwrap_or(&KdlNode::new("packages"))
-        .children()
-        .unwrap_or(&KdlDocument::new())
-        .nodes()
-    {
-        let name = x.name().value().to_owned();
-        let version = x
-            .entries()
-            .get(0)
-            .unwrap_or(&KdlEntry::new(""))
-            .value()
-            .as_string()
-            .ok_or(anyhow!("Version field of package is not a string!"))?
-            .to_owned();
-        packages.push(Package::new(name, version));
-    }
-
-    for x in file
-        .get("users")
-        .unwrap_or(&KdlNode::new("users"))
-        .children()
-        .unwrap_or(&KdlDocument::new())
-        .nodes()
-    {
-        let username = x.name().value().to_owned();
-        let ents = x
-            .entries()
-            .iter()
-            .map(|x| x.value())
-            .collect::<Vec<&KdlValue>>();
-        if ents.len() < 6 {
-            bail!(
-                "Not enough entries in user declaration! Need 6, found {}",
-                ents.len()
-            );
-        }
-        users.push(User {
-            username,
-            password: kdlvalue_as_string(
-                ents[0],
-                "password in user declaration",
-            )?,
-            uid: kdlvalue_as_u64(ents[1], "uid in user declaration")?,
-            gid: kdlvalue_as_u64(ents[2], "gid in user declaration")?,
-            gecos: kdlvalue_as_string(ents[3], "gecos in user declaration")?,
-            home_dir: kdlvalue_as_string(
-                ents[4],
-                "home directory in user declaration",
-            )?,
-            shell: kdlvalue_as_string(ents[5], "shell in user configuration")?,
-        });
-    }
-
-    for x in file
-        .get("groups")
-        .unwrap_or(&KdlNode::new("groups"))
-        .children()
-        .unwrap_or(&KdlDocument::new())
-        .nodes()
-    {
-        let groupname = x.name().to_string();
-        let gid: u64 = x
-            .entries()
-            .get(0)
-            .ok_or(anyhow!("GID not specified in group declaration!"))?
-            .value()
-            .as_integer()
-            .ok_or(anyhow!("GID is not an integer in group declaration!"))?
-            .try_into()
-            .context("Failed to convert GID to u64!")?;
-        let members = x
-            .children()
-            .unwrap_or(&KdlDocument::new())
-            .nodes()
-            .iter()
-            .map(|x| x.name().to_string())
-            .collect();
-        groups.push(Group {
-            groupname,
-            gid,
-            members,
-        });
-    }
-
-    Ok(DptFile {
-        packages,
-        users,
-        groups,
-    })
-}
-
 pub fn get_dpt_file_location() -> PathBuf {
-    get_dpt_dir().join("dpt.kdl")
+    get_dpt_dir().join("dpt.ron")
 }
 
 pub fn get_dpt_lock_location() -> PathBuf {
@@ -156,15 +39,19 @@ pub fn get_dpt_lock_location() -> PathBuf {
 }
 
 pub fn read_dpt_file() -> Result<DptFile> {
-    parse_dpt_file(&parse_kdl(&std::fs::read_to_string(
+    Ok(parse_dpt_file(&std::fs::read_to_string(
         get_dpt_file_location(),
     )?)?)
 }
 
 pub fn read_dpt_lock_file() -> Result<DptFile> {
-    parse_dpt_file(&parse_kdl(&std::fs::read_to_string(
+    Ok(parse_dpt_file(&std::fs::read_to_string(
         get_dpt_lock_location(),
     )?)?)
+}
+
+pub fn parse_dpt_file(file: &str) -> Result<DptFile> {
+    Ok(ron::from_str(file)?)
 }
 
 #[cfg(test)]
@@ -173,16 +60,30 @@ mod test {
 
     #[test]
     fn package_array() {
-        let doc: KdlDocument = r#"
-packages {
-    gcc
-    binutils
-    fish "4.0.0"
-    yazi
-}
-        "#
-        .parse()
-        .expect("Failed to parse KDL!");
+        let doc = r#"
+(
+    packages: [
+        (
+            name: "gcc",
+            version: ""
+        ),
+        (
+            name: "binutils",
+            version: ""
+        ),
+        (
+            name: "fish",
+            version: "4.0.0"
+        ),
+        (
+            name: "yazi",
+            version: ""
+        )
+    ],
+    users: [],
+    groups: []
+)
+        "#;
 
         let out = parse_dpt_file(&doc).unwrap();
         assert_eq!(
@@ -198,14 +99,32 @@ packages {
 
     #[test]
     fn users_array() {
-        let doc: KdlDocument = r#"
-users {
-    john "Hashed password" 1000 1000 "John, Room 5" "/home/john" "/usr/bin/fish"
-    george "HashBrowns" 1001 1002 "George, Room 8" "/home/george" "/bin/bash"
-}
-        "#
-        .parse()
-        .expect("Failed to parse KDL!");
+        let doc = r#"
+(
+    users: [
+        (
+            username: "john",
+            password: "Hashed password",
+            uid: 1000,
+            gid: 1000,
+            gecos: "John, Room 5",
+            home: "/home/john",
+            shell: "/usr/bin/fish"
+        ),
+        (
+            username: "george",
+            password: "HashBrowns",
+            uid: 1001,
+            gid: 1002,
+            gecos: "George, Room 8",
+            home: "/home/george",
+            shell: "/bin/bash"
+        )
+    ],
+    packages: [],
+    groups: []
+)
+        "#;
 
         let out = parse_dpt_file(&doc).unwrap();
         assert_eq!(
@@ -217,7 +136,7 @@ users {
                     uid: 1000,
                     gid: 1000,
                     gecos: "John, Room 5".into(),
-                    home_dir: "/home/john".into(),
+                    home: "/home/john".into(),
                     shell: "/usr/bin/fish".into()
                 },
                 User {
@@ -226,7 +145,7 @@ users {
                     uid: 1001,
                     gid: 1002,
                     gecos: "George, Room 8".into(),
-                    home_dir: "/home/george".into(),
+                    home: "/home/george".into(),
                     shell: "/bin/bash".into()
                 }
             ]
@@ -235,20 +154,34 @@ users {
 
     #[test]
     fn groups_array() {
-        let doc: KdlDocument = r#"
-groups {
-    me 1 {
-        someone
-        someone_else
-    }
-    nobody 65536 {
-        noone
-    }
-    empty 2
-}
-        "#
-        .parse()
-        .unwrap();
+        let doc = r#"
+(
+    groups: [
+        (
+            groupname: "me",
+            gid: 1,
+            members: [
+                "someone",
+                "someone_else"
+            ]
+        ),
+        (
+            groupname: "nobody",
+            gid: 65536,
+            members: [
+                "noone"
+            ]
+        ),
+        (
+            groupname: "empty",
+            gid: 2,
+            members: []
+        )
+    ],
+    users: [],
+    packages: []
+)
+        "#;
 
         let out = parse_dpt_file(&doc).unwrap();
 

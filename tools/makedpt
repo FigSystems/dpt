@@ -41,29 +41,6 @@ function exit_handling() {
 	[ -n "$tmp_dir" ] && rm -rf "$tmp_dir"
 }
 
-function deps_to_string_arg() {
-	for x in "$@"; do
-		name="$(echo -n "$x" | grep -E -o '^[^>=]+')"
-		version="$({ echo -n "$x" | grep -P -o "(?<=$name).*" | sed 's/==//g'; } || true)"
-		echo "depends \"${name}\" $(if [ -n "$version" ]; then echo "version=\"$version\""; fi)"
-	done
-}
-
-function generate_dpt_file() {
-	msg "Generating dpt file"
-	mkdir -p $pkgdir/dpt
-	name="$1"
-	shift
-	ver="$1"
-	shift
-	cat <<EOF >$pkgdir/dpt/pkg.kdl
-name "$name"
-version "$ver"
-
-$(deps_to_string_arg "$@")
-EOF
-}
-
 function strip_binaries_and_libraries() {
 	# Modified from arch linux's makepkg script
 	if [[ -v NO_STRIP_BINARIES ]]; then
@@ -103,6 +80,17 @@ function strip_binaries_and_libraries() {
 	done
 }
 
+function deps_to_string() {
+	for x in "$@"; do
+		name="$(echo -n "$x" | grep -E -o '^[^>=]+')"
+		version="$({ echo -n "$x" | grep -P -o "(?<=$name).*" | sed 's/==//g'; } || true)"
+			echo "("
+			echo "name: \"$name\","
+			echo "version: \"$version\""
+			echo "),"
+	done
+}
+
 cd "$tmp_dir"
 
 msg "Fetching sources"
@@ -118,59 +106,24 @@ if [[ -v files ]]; then
 	done
 fi
 
-if [[ -v USE_HOST_TOOLS ]]; then
+msg "Building package"
+for x in "${pkgname[@]}"; do
 	pkgdir="$(mktemp -d)"
-	msg "Building package"
-	build
-	generate_dpt_file "$pkgname" "$pkgver" "${depends[@]}"
-	strip_binaries_and_libraries
-	msg "Packaging"
-	dpt gen-pkg "$pkgdir" "$oldpwd/$pkgname-$pkgver.dpt"
-	rm -rf "$pkgdir"
-else
-	default_package_list="bash coreutils"
-
-	if declare -p pkgname 2>/dev/null | grep -q '^declare -a'; then
-		for x in "${pkgname[@]}"; do
-			pkgdir="$(mktemp -d)"
-			formated_x="$(echo -n "$x" | tr '-' '_')"
-			typeset -n tmp_x_ver="pkgver_${formated_x}"
-			typeset -n tmp_x_deps="depends_${formated_x}"
-
-			if [[ -v depends_${formated_x} ]]; then
-				depends_variable=("${tmp_x_deps[@]}")
-			else
-				depends_variable=("${depends[@]}")
-			fi
-
-			if [[ -v pkgver_${formated_x} ]]; then
-				computed_version="${tmp_x_ver}"
-			else
-				computed_version="$pkgver"
-			fi
-
-			msg "Building package"
-			dpt dev-env $default_package_list "${makedepends[@]}" <<EOF
-set -e
-set -u
-
-source "$file"
-pkgdir="$pkgdir"
-oldpwd="$oldpwd"
-
-build_$x
-EOF
-
-			generate_dpt_file "$x" "$computed_version" "${depends_variable[@]}"
-			strip_binaries_and_libraries
-			msg "Packaging"
-			dpt gen-pkg "$pkgdir" "$oldpwd/$x-$computed_version.dpt"
-			rm -rf "$pkgdir"
-		done
+	if declare -p variable-name 2> /dev/null | grep -q '^declare \-a'; then
+		build_command="build_$x"
+		depends_variable="$(echo "depends_$x" | tr '-' '_')"
+		ver_variable="$(echo "ver_$x" | tr '-' '_')"
 	else
-		pkgdir="$(mktemp -d)"
-		msg "Building package"
-		dpt dev-env $default_package_list "${makedepends[@]}" <<EOF
+		build_command="build"
+		depends_variable="depends"
+		ver_variable="pkgver"
+	fi
+	declare -n deps="$depends_variable"
+	declare -n ver="$ver_variable"
+	if [[ -v USE_HOST_TOOLS ]]; then
+		$build_command
+	else
+		dpt dev-env bash coreutils "${make_depends[@]}" <<EOF
 set -e
 set -u
 
@@ -178,16 +131,24 @@ source "$file"
 pkgdir="$pkgdir"
 oldpwd="$oldpwd"
 
-build
+source "$file"
+$build_command
 EOF
-
-		generate_dpt_file "$pkgname" "$pkgver" "${depends[@]}"
-		strip_binaries_and_libraries
-		msg "Packaging"
-		dpt gen-pkg "$pkgdir" "$oldpwd/$pkgname-$pkgver.dpt"
-		rm -rf "$pkgdir"
 	fi
-fi
+
+	cat <<EOF >$pkgdir/dpt/pkg.ron
+(
+	name: "$x",
+	version: "$ver",
+	depends: [
+		$(deps_to_string "${deps[@]}")
+	]
+)
+EOF
+	dpt gen-pkg "$pkgdir"
+	rm -rf "$pkgdir"
+done
+
 cd "$oldpwd"
 rm -rf "$tmp_dir"
 exit 0

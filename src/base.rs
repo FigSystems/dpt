@@ -45,7 +45,7 @@ fn build_passwd(dpt: &DptFile) -> String {
             user.uid,
             user.gid,
             user.gecos,
-            user.home_dir,
+            user.home,
             user.shell
         ));
     }

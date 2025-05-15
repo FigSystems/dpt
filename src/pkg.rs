@@ -1,5 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
-use kdl::{KdlDocument, KdlError, KdlIdentifier};
+use ron;
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     fmt::{self, Display},
@@ -8,13 +9,13 @@ use std::{
 };
 use tar::Archive;
 
-#[derive(Debug, Clone, Hash, Eq)]
+#[derive(Debug, Clone, Hash, Eq, Serialize, Deserialize)]
 pub struct Dependency {
     pub name: String,
-    pub version_mask: String,
+    pub version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Package {
     pub name: String,
     pub version: String,
@@ -34,17 +35,17 @@ impl Display for Package {
 
 impl PartialEq for Dependency {
     fn eq(&self, other: &Dependency) -> bool {
-        self.name == other.name && self.version_mask == other.version_mask
+        self.name == other.name && self.version == other.version
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Glue {
     Bin,
     Glob(Vec<String>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PackageConfig {
     pub name: String,
     pub version: String,
@@ -60,7 +61,7 @@ impl PartialEq for PackageConfig {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Version {
     n: Vec<u32>,
 }
@@ -167,19 +168,6 @@ pub fn index_or_err_str(s: &Vec<&str>, i: usize) -> Result<String> {
     .to_string())
 }
 
-/// Reads a kdl value from a kdl document, bailing if it is not a string or doesn't exist.
-fn get_kdl_value_string(doc: &KdlDocument, field: &str) -> Result<String> {
-    let field_value = doc.get_arg(&field);
-    if let None = field_value {
-        bail!("{} does not have an argument", field);
-    }
-    let field_value = field_value.unwrap().as_string();
-    if let None = field_value {
-        bail!("{}'s argument is not a string", field);
-    }
-    Ok(field_value.unwrap().to_string())
-}
-
 /// Returns Ok if the package config is valid, and Err if it is not.
 pub fn verify_pkg_config(file: &str) -> Result<()> {
     match get_package_config(file) {
@@ -190,100 +178,7 @@ pub fn verify_pkg_config(file: &str) -> Result<()> {
 
 /// Parses the package configuration and bails if not valid.
 pub fn get_package_config(file: &str) -> Result<PackageConfig> {
-    let doc = parse_kdl(file)?;
-
-    let name = get_kdl_value_string(&doc, "name")?;
-    let version = get_kdl_value_string(&doc, "version")?;
-
-    let depends = parse_depends(&doc)?;
-    let glue = parse_glue(&doc)?;
-    Ok(PackageConfig {
-        name,
-        version,
-        depends,
-        glue,
-    })
-}
-
-pub fn parse_glue(doc: &KdlDocument) -> Result<Vec<Glue>> {
-    let mut ret: Vec<Glue> = Vec::new();
-    for x in doc.nodes() {
-        if x.name().value() == "glue" {
-            let entries = x.entries();
-
-            if entries[0].value().as_string().is_none() {
-                bail!("type of glue specified is not a string!");
-            }
-            for y in entries {
-                if y.name().is_some() {
-                    bail!("Unexpected property in glue item!");
-                }
-            }
-
-            let glue_type = match entries[0].value().as_string().unwrap() {
-                "bin" => Glue::Bin,
-                "glob" => {
-                    let mut v: Vec<String> =
-                        Vec::with_capacity(entries.len() - 2);
-                    for y in &entries[2..] {
-                        if let Some(x) = y.value().as_string() {
-                            v.push(x.to_string());
-                        } else {
-                            bail!("Argument to glue glob item is not a string!")
-                        }
-                    }
-                    Glue::Glob(v)
-                }
-                x => {
-                    bail!("Unexpected type of glue '{x}'!");
-                }
-            };
-            ret.push(glue_type);
-        }
-    }
-    Ok(ret)
-}
-
-/// Parse a kdl document, bailing if invalid
-pub fn parse_kdl(file: &str) -> Result<KdlDocument> {
-    let doc: Result<KdlDocument, KdlError> = file.parse();
-    if let Err(_) = doc {
-        bail!("Failed to parse KDL document: {}\n", file);
-    }
-    let doc = doc;
-    match doc {
-        Ok(x) => Ok(x),
-        Err(e) => Err(anyhow!(e)),
-    }
-}
-
-/// Parse the dependencies from a package configuration kdl document
-pub fn parse_depends(doc: &KdlDocument) -> Result<Vec<Dependency>> {
-    let mut depends: Vec<Dependency> = Vec::new();
-    for node in doc.nodes().into_iter() {
-        if node.name().value() == "depends" {
-            let name = node.get(0);
-            if let None = name {
-                bail!("Name not specified for dependency!");
-            }
-            let name = name.unwrap();
-
-            let version = {
-                let mut v = "";
-                for ent in node.entries() {
-                    if ent.name() == Some(&KdlIdentifier::parse("version")?) {
-                        v = ent.value().as_string().ok_or(anyhow!("`version` specifier for dependency is not a string! (Did you forget quotes?)"))?;
-                    }
-                }
-                v
-            }.to_string();
-            depends.push(Dependency {
-                name: name.to_string(),
-                version_mask: version,
-            });
-        }
-    }
-    Ok(depends)
+    Ok(ron::from_str(file)?)
 }
 
 /// Parses the name and version from a string.
@@ -340,14 +235,29 @@ mod tests {
     #[test]
     fn get_pkg_config_1() {
         let s = r###"
-name "abcd"
-version "145.54.12"
+(
+    name: "abcd",
+    version: "145.54.12",
 
-depends "coreutils"
-depends python version="^8.9.112"
+    depends: [
+        (
+            name: "coreutils",
+            version: "",
+        ),
+        (
+            name: "python",
+            version: "^8.9.112"
+        )
+    ],
 
-glue bin
-glue glob "/usr/lib/systemd/system/*.service" "/usr/lib/systemd/system/*.socket"
+    glue: [
+        Bin,
+        Glob([
+            "/usr/lib/systemd/system/*.service",
+            "/usr/lib/systemd/system/*.socket"
+        ])
+    ]
+)
 "###;
         let expected = PackageConfig {
             name: "abcd".to_string(),
@@ -355,11 +265,11 @@ glue glob "/usr/lib/systemd/system/*.service" "/usr/lib/systemd/system/*.socket"
             depends: vec![
                 Dependency {
                     name: "coreutils".to_string(),
-                    version_mask: "".to_string(),
+                    version: "".to_string(),
                 },
                 Dependency {
                     name: "python".to_string(),
-                    version_mask: "^8.9.112".to_string(),
+                    version: "^8.9.112".to_string(),
                 },
             ],
             glue: vec![

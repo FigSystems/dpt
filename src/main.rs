@@ -35,7 +35,6 @@ use indicatif::ProgressIterator;
 
 use anyhow::{anyhow, Context, Result};
 use colog::format::CologStyle;
-use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use log::{error, warn, Level};
 use pkg::{
     decompress_pkg_read, get_package_config, string_to_package, Package,
@@ -43,6 +42,7 @@ use pkg::{
 use repo::{
     get_all_available_packages, install_pkgs_and_dependencies,
     newest_package_from_name, package_to_onlinepackage, OnlinePackage,
+    RepositoryIndex,
 };
 use run::run_multiple_packages;
 use store::{get_dpt_dir, get_installed_packages, get_package_for_bin};
@@ -177,23 +177,17 @@ fn main() -> Result<()> {
 
             rebuild_base(&dpt).context("Failed to build base!")?;
 
-            let mut dpt_lock = KdlDocument::new();
-
-            let mut packages_node = KdlNode::new("packages");
-            let mut packages_doc = KdlDocument::new();
+            let mut dpt_lock = dpt.clone();
 
             let done_list = remove_duplicates(done_list);
+
+            dpt_lock.packages = Vec::with_capacity(done_list.len());
+
             for x in done_list {
-                let mut node = KdlNode::new(x.name);
-                node.entries_mut()
-                    .push(KdlEntry::new(KdlValue::String(x.version)));
-                packages_doc.nodes_mut().push(node);
+                dpt_lock.packages.push(Package::new(x.name, x.version));
             }
 
-            packages_node.set_children(packages_doc);
-            dpt_lock.nodes_mut().push(packages_node);
-
-            write(get_dpt_dir().join("dpt.lock"), dpt_lock.to_string())
+            write(get_dpt_dir().join("dpt.lock"), ron::to_string(&dpt_lock)?)
                 .context("Failed to write dpt.lock file")?;
         }
         "run" => {
@@ -346,7 +340,7 @@ fn main() -> Result<()> {
         }
         "gen-index" => {
             set_effective_uid(get_current_uid())?;
-            let mut out_str = String::new();
+            let mut out = RepositoryIndex { packages: vec![] };
 
             let dpts = walkdir::WalkDir::new(".")
                 .follow_links(true)
@@ -372,7 +366,7 @@ fn main() -> Result<()> {
                 let mut pkg = decompress_pkg_read(std::fs::File::open(&ent)?)?;
                 for pkg_ent in pkg.entries()? {
                     let mut pkg_ent = pkg_ent?;
-                    if pkg_ent.path()? == Path::new("dpt/pkg.kdl") {
+                    if pkg_ent.path()? == Path::new("dpt/pkg.ron") {
                         let mut buf = String::new();
                         pkg_ent.read_to_string(&mut buf)?;
                         let cfg = get_package_config(&buf)?;
@@ -388,39 +382,17 @@ fn main() -> Result<()> {
                             ))?
                             .to_string();
 
-                        out_str.push_str(&format!(
-                            "package name=\"{}\" version=\"{}\" path=\"{}\"",
-                            cfg.name.clone(),
-                            cfg.version.clone(),
-                            ent_path
-                        ));
-
-                        if cfg.depends.is_empty() {
-                            out_str.push('\n');
-                        } else {
-                            // We have dependencies! Yay!
-                            out_str.push_str(&format!(" {{\n"));
-                            for depend in cfg.depends {
-                                out_str.push_str(&format!(
-                                    "    depends \"{}\"{}\n",
-                                    depend.name,
-                                    if &depend.version_mask != "" {
-                                        format!(
-                                            " version=\"{}\"",
-                                            depend.version_mask
-                                        )
-                                    } else {
-                                        "".to_string()
-                                    }
-                                ));
-                            }
-                            out_str.push_str("}\n");
-                        }
+                        out.packages.push(OnlinePackage {
+                            name: cfg.name,
+                            version: cfg.version,
+                            url: ent_path,
+                            depends: cfg.depends,
+                        });
                     }
                 }
             }
 
-            std::fs::write("index.kdl", &out_str)?;
+            std::fs::write("index.ron", ron::to_string(&out)?)?;
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();

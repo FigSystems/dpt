@@ -21,3 +21,5 @@
 - Packages can be run by setting $0 of the dpt process to a different value.
 
 - Add glue support.
+
+- Switch all configuration files to RON instead of KDL.

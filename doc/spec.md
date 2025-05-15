@@ -20,16 +20,6 @@ There are a bunch of terms and ideas used in this document.
 
 - Repository: A location on the internet or locally that provides packages to dpt.
 
-- Dash args: A KDL convention where child nodes named `-` are treated as arrayish. e.g.
-  
-  ```kdl
-  foo {
-    - 1
-    - 2
-    - #false
-  }
-  ```
-
 # Command line usage
 
 Covers the basics of dpt’s command line usage. Do note that dpt should be installed SUID as running packages requires the `chroot` syscall.
@@ -93,8 +83,6 @@ glue bin
 glue glob /usr/lib/systemd/system/*
 ```
 
-
-
 # Packages
 
 This section defines various properties of packages, as well as their creation.
@@ -106,7 +94,7 @@ The directory structure of an dpt is quite basic, consisting of an FHS compliant
 ```
 example-1.2.3
 ├── dpt
-│    └── pkg.kdl # Package details. You write this.
+│    └── pkg.ron # Package details. You write this.
 └── usr
     ├── bin
     │    └── example
@@ -121,16 +109,31 @@ Most dpts are distributed as `.dpt` files. A `.dpt` file is just a zstd compress
 
 The process of generating packages requires writing a description file, installing the program to a directory, and then running `dpt gen-pkg [directory]`. An example package description file:
 
-```
-# pkg-directory/dpt/pkg.kdl
-name example
-version "1.2.3"
+```ron
+# pkg-directory/dpt/pkg.ron
+(
+    name: "example",
+    version: "1.2.3"
 
-depends python version=">=3.12"
-depends coreutils
-depends love
-depends joy
-depends community
+    depends: [
+        (
+            name: "python",
+            version: ">=3.12"
+        ),
+        (
+            name: "coreutils",
+            version: "",
+        ),
+        (
+            name: "love",
+            version: ""
+        ),
+        (
+            name: "joy",
+            version: ""
+        )
+    ]
+)
 ...
 ```
 
@@ -142,7 +145,7 @@ Version ranges are specified immediately prior to the version. They can be one o
 
 ### DPTBUILDs
 
-For convenience in the process of generating packages, one can write an DPTUILD file, which is very similar to Arch Linux's PKGBUILDs. Not all features are supported. The currently defined variables/functions in DPTBUILDs are
+For convenience in the process of generating packages, one can write an DPTBUILD file, which is very similar to Arch Linux's PKGBUILDs. Not all features are supported. The currently defined variables/functions in DPTBUILDs are
 
 - `pkgname`
 - `pkgver`
@@ -158,18 +161,28 @@ If `pkgname` is an array, then all of the `build_${pkgname_item}`s will be calle
 
 Repositories are simply http(s) servers with a predefined file structure as follows:
 
-- index.kdl: KDL file with a list of packages and package versions that are contained in this repository.
+- index.ron: KDL file with a list of packages and package versions that are contained in this repository.
 
 - \*.dpt: All of the compressed dpts on this repository.
 
-index.kdl is made of bunch of package nodes. In each node there is a name value, a version value, and a path value. E.g.
+index.kdl is composed of the list `packages`. Each element in this list included a `name`, `version`, `url`, and `depends`. e.g.
 
-```
-package name=python version="3.10.2" path="/python-3.10.2.dpt" {
-depends ...
-depends ...
-... // A copy of the package's depends section
-}
+```ron
+(
+    packages: [
+        (
+            name: "python",
+            version: "3.10.2",
+            url: "/python-3.10.2.dpt",
+            depends: [
+                (
+                    name: "glibc",
+                    version: ""
+                )
+            ]
+        )
+    ]
+)
 ```
 
 The list of repositories is stored in `${dpt_directory}/repos` in the format of
@@ -205,28 +218,10 @@ _Example_
 
 # Dpt system configuration
 
-The dpt system configuration file is located at `${dpt_directory}/dpt.kdl` and is composed of a key-value KDL document. All generated files from this configuration will be added to the `${dpt_directory}/base` directory. When `dpt rebuild` is run, an `dpt.lock` file is created in the same directory, containing computed information that was computed from `dpt.kdl`. This lock file includes generated information such as package versions, enabled services, `base` files, etc. `${dpt_directory}/dpt.kdl` has the following fields:
+The dpt system configuration file is located at `${dpt_directory}/dpt.ron`. All generated files from this configuration will be added to the `${dpt_directory}/base` directory. When `dpt rebuild` is run, an `dpt.lock` file is created in the same directory, containing computed information that was derived from `dpt.ron`. This lock file includes generated information such as package versions, enabled services, `base` files, etc. `${dpt_directory}/dpt.ron` has the following fields:
 
-- `packages` An array of packages. Each child's node name is the package name and the next argument, if it exists, will be the version.
+- `packages` An array of packages. If the version is left blank, the newest version will be used.
 
-- `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The entries (sub nodes) are in the format of
-  
-  ```kdl
-  username \
-      "Hashed password" \
-      uid \
-      gid \
-      "Full Name (GECOS)" \
-      "/home/directory" \
-      "/usr/bin/my-fave-shell"
-  ```
+- `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The required fields are `username`, `password`, `uid`, `gid`, `gecos`, `home` and `shell`.
 
-- `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The entries (sub nodes) are in the format of
-  
-  ```kdl
-  groupname gid {
-      member1
-      member2
-      ...
-  }
-  ```
+- `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The required fields are `groupname`, `gid`, and `members`. Note that `members` is a list of strings.

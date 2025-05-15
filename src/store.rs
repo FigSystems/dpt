@@ -34,7 +34,7 @@ pub fn get_installed_packages_without_dpt_file() -> Result<Vec<OnlinePackage>> {
             .ok_or(anyhow!("Failed to parse path into string"))?
             .to_string();
 
-        let doc = fs::read_to_string(path.join("dpt/pkg.kdl"));
+        let doc = fs::read_to_string(path.join("dpt/pkg.ron"));
         if let Err(_) = doc {
             log::warn!(
                 "Failed to read the configuration file for package {}!",
