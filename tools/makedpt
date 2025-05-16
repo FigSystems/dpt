@@ -84,11 +84,28 @@ function deps_to_string() {
 	for x in "$@"; do
 		name="$(echo -n "$x" | grep -E -o '^[^>=]+')"
 		version="$({ echo -n "$x" | grep -P -o "(?<=$name).*" | sed 's/==//g'; } || true)"
-			echo "("
-			echo "name: \"$name\","
-			echo "version: \"$version\""
-			echo "),"
+			echo "		("
+			echo "			name: \"$name\","
+			echo "			version: \"$version\""
+			echo "		),"
 	done
+}
+
+function glue_to_string() {
+	declare -n v_glue_bin="$1"
+	declare -n v_glue_glob="$2"
+
+	if [[ -v v_glue_bin ]]; then
+		echo "		Bin,"
+	fi
+
+	if [[ -v v_glue_glob ]]; then
+		echo "		Glob(["
+		for x in "${v_glue_glob[@]}"; do
+			echo "			\"$x\","
+		done
+		echo "		])"
+	fi
 }
 
 cd "$tmp_dir"
@@ -109,14 +126,18 @@ fi
 msg "Building package"
 for x in "${pkgname[@]}"; do
 	pkgdir="$(mktemp -d)"
-	if declare -p variable-name 2> /dev/null | grep -q '^declare \-a'; then
-		build_command="build_$x"
-		depends_variable="$(echo "depends_$x" | tr '-' '_')"
-		ver_variable="$(echo "ver_$x" | tr '-' '_')"
+	if declare -p pkgname 2> /dev/null | grep -q '^declare -a'; then
+		build_command="${x}_build"
+		depends_variable="$(echo "${x}_depends" | tr '-' '_')"
+		ver_variable="$(echo "${x}_pkgver" | tr '-' '_')"
+		glue_bin_variable="$(echo "${x}_glue_bin" | tr '-' '_')"
+		glue_glob_variable="$(echo "${x}_glue_glob" | tr '-' '_')"
 	else
 		build_command="build"
 		depends_variable="depends"
 		ver_variable="pkgver"
+		glue_bin_variable="glue_bin"
+		glue_glob_variable="glue_glob"
 	fi
 	declare -n deps="$depends_variable"
 	declare -n ver="$ver_variable"
@@ -136,16 +157,20 @@ $build_command
 EOF
 	fi
 
+	mkdir -p $pkgdir/dpt
 	cat <<EOF >$pkgdir/dpt/pkg.ron
 (
 	name: "$x",
 	version: "$ver",
 	depends: [
-		$(deps_to_string "${deps[@]}")
+$(deps_to_string "${deps[@]}")
+	],
+	glue: [
+$(glue_to_string "$glue_bin_variable" "$glue_glob_variable")
 	]
 )
 EOF
-	dpt gen-pkg "$pkgdir"
+	dpt gen-pkg "$pkgdir" "$oldpwd/$x-$ver.dpt"
 	rm -rf "$pkgdir"
 done
 

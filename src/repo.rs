@@ -156,7 +156,7 @@ pub fn get_all_available_packages() -> Result<Vec<OnlinePackage>> {
 
 /// Parse a version range from a string
 pub fn parse_version_range(vr: &str) -> Result<Ranges<Version>> {
-    Ok(if vr.len() < 5 {
+    Ok(if vr.len() < 1 {
         VersionSet::full()
     } else if vr.chars().next() == Some('>') {
         if vr.chars().nth(1).unwrap() == '=' {
