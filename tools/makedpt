@@ -141,6 +141,7 @@ for x in "${pkgname[@]}"; do
 	fi
 	declare -n deps="$depends_variable"
 	declare -n ver="$ver_variable"
+	ver="${ver:-$pkgver}"
 	if [[ -v USE_HOST_TOOLS ]]; then
 		$build_command
 	else
