@@ -145,7 +145,7 @@ for x in "${pkgname[@]}"; do
 	if [[ -v USE_HOST_TOOLS ]]; then
 		$build_command
 	else
-		dpt dev-env bash coreutils "${make_depends[@]}" <<EOF
+		dpt dev-env bash coreutils "${makedepends[@]}" <<EOF
 set -e
 set -u
 
