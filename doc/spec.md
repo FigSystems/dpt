@@ -72,15 +72,21 @@ For each package, when it is ran, an environment is created. Each environment co
 
 Dpt glues are small wrappers that fulfill some requirement of a given package. Available glues are
 
-- `bin`: Creates small wrappers in the `/usr/bin` directory for all other packages in the dptfile.
+- `Bin`: Creates small wrappers in the `/usr/bin` directory for all other packages in the dptfile.
 
-- `glob [globs]` Creates hard-links from all files matching this glob in other packages into the current environment.
+- `Glob([globs])` Creates hard-links from all files matching this glob in other packages into the current environment.
 
 To specify glues for a package, specify your intended glue and arguments on a `glue` node. e.g.
 
-```kdl
-glue bin
-glue glob /usr/lib/systemd/system/*
+```ron
+glue: [
+    Bin,
+    Glob(
+        [
+            "/usr/lib/systemd/system/*"
+        ]
+    )
+]
 ```
 
 # Packages
@@ -147,11 +153,13 @@ Version ranges are specified immediately prior to the version. They can be one o
 
 For convenience in the process of generating packages, one can write an DPTBUILD file, which is very similar to Arch Linux's PKGBUILDs. Not all features are supported. The currently defined variables/functions in DPTBUILDs are
 
-- `pkgname`
-- `pkgver`
-- `depends`
-- `makedepends`
-- `build()`
+- `pkgname`: The name of the package.
+- `pkgver`: The version of the package.
+- `depends`: The dependencies.
+- `makedepends`: The build dependencies.
+- `build()`: The function that runs the build.
+- `glue_bin`: If defined, the `Bin` glue will be specified.
+- `glue_glob`: If defined, each item in this list will be an entry for the `Glob` glue.
 
 The build will happen in an dpt environment with only the packages specified in the `makedepends` variable, `bash` and `coreutils`.
 
