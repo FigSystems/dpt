@@ -187,8 +187,14 @@ fn main() -> Result<()> {
                 dpt_lock.packages.push(Package::new(x.name, x.version));
             }
 
-            write(get_dpt_dir().join("dpt.lock"), ron::to_string(&dpt_lock)?)
-                .context("Failed to write dpt.lock file")?;
+            write(
+                get_dpt_dir().join("dpt.lock"),
+                ron::ser::to_string_pretty(
+                    &dpt_lock,
+                    ron::ser::PrettyConfig::default(),
+                )?,
+            )
+            .context("Failed to write dpt.lock file")?;
         }
         "run" => {
             if argc < 3 {
@@ -392,7 +398,13 @@ fn main() -> Result<()> {
                 }
             }
 
-            std::fs::write("index.ron", ron::to_string(&out)?)?;
+            std::fs::write(
+                "index.ron",
+                ron::ser::to_string_pretty(
+                    &out,
+                    ron::ser::PrettyConfig::default(),
+                )?,
+            )?;
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
