@@ -5,7 +5,6 @@ use std::{
     cmp::Ordering,
     fmt::{self, Display},
     io::BufRead,
-    path::Path,
 };
 use tar::Archive;
 
@@ -164,14 +163,6 @@ pub fn index_or_err_str(s: &Vec<&str>, i: usize) -> Result<String> {
     .to_string())
 }
 
-/// Returns Ok if the package config is valid, and Err if it is not.
-pub fn verify_pkg_config(file: &str) -> Result<()> {
-    match get_package_config(file) {
-        Err(x) => Err(x),
-        Ok(_) => Ok(()),
-    }
-}
-
 /// Parses the package configuration and bails if not valid.
 pub fn get_package_config(file: &str) -> Result<PackageConfig> {
     Ok(ron::from_str(file)?)
@@ -194,22 +185,6 @@ pub fn string_to_package(s: &str) -> Result<Package> {
     })
 }
 
-/// Tars the directory and compresses it into a .dpt
-pub fn package_pkg(dir: &Path, out: &Path) -> Result<()> {
-    let f = std::fs::File::create(&out)?;
-
-    let mut zstrm =
-        zstd::Encoder::new(f, zstd::DEFAULT_COMPRESSION_LEVEL)?.auto_finish();
-
-    let mut tar = tar::Builder::new(&mut zstrm);
-    tar.follow_symlinks(false);
-    tar.mode(tar::HeaderMode::Complete);
-    tar.append_dir_all(".", &dir)?;
-
-    tar.finish()?;
-    Ok(())
-}
-
 /// Decompresses a package from something implementing std::io::Read
 pub fn decompress_pkg_read<'a>(
     pkg: impl std::io::Read,
@@ -219,6 +194,9 @@ pub fn decompress_pkg_read<'a>(
     let mut archive = tar::Archive::new(zstrm);
     archive.set_unpack_xattrs(true);
     archive.set_preserve_permissions(true);
+    archive.set_preserve_ownerships(true);
+    archive.set_overwrite(true);
+
     Ok(archive)
 }
 

@@ -27,3 +27,5 @@
 - Allow versions with more then two decimal places
 
 - Build packages with fakeroot
+
+- Remove `gen-pkg` command as it doesn't work with fakeroot.

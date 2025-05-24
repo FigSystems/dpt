@@ -8,7 +8,6 @@ mod base;
 mod config;
 mod dpt_file;
 mod env;
-mod gen_pkg;
 mod pkg;
 mod repo;
 mod run;
@@ -134,26 +133,6 @@ fn main() -> Result<()> {
     }
 
     match &args.get(1).unwrap() as &str {
-        "gen-pkg" => {
-            // You are allowed to generate a package as non-root
-            set_effective_uid(get_current_uid())?;
-            if argc < 3 {
-                error!("Not enough arguments!");
-                exit(exitcode::USAGE);
-            }
-
-            let path = PathBuf::from(&format!("{}", &args[2]));
-            let mut out = path.with_extension("dpt");
-
-            if argc > 3 {
-                out = PathBuf::from_str(&args[3])?;
-            }
-            let err = gen_pkg::gen_pkg(&path, &out);
-            if let Err(e) = err {
-                error!("{}", e);
-                exit(1);
-            }
-        }
         "rebuild" => {
             command_requires_root_uid();
             let dpt = read_dpt_file()?;
@@ -501,7 +480,6 @@ Commands:
     rebuild         Rebuilds the environment according to the dpt file.
     run             Runs a program
     run-multi       Runs the first program specified in an env with the rest
-    gen-pkg         Generates a package from a directory
     gen-index       Generates the index file for a package repository at PWD"
     );
 }
