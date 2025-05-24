@@ -71,10 +71,6 @@ impl Version {
         Version { n }
     }
     pub fn from_str(s: &str) -> Result<Self> {
-        let dots = s.chars().filter(|c| *c == '.').count();
-        if dots > 2 {
-            bail!("To many numbers in version {}!", s);
-        }
         let str_split = s.split(".").into_iter().collect::<Vec<&str>>();
         if str_split.len() < 1 {
             bail!("Empty version strings are invalid!");
@@ -313,8 +309,8 @@ mod tests {
             Version::new(vec![1, 2, 3])
         );
         assert_eq!(
-            Version::from_str("300.22.11").unwrap(),
-            Version::new(vec![300, 22, 11])
+            Version::from_str("300.22.11.00").unwrap(),
+            Version::new(vec![300, 22, 11, 0])
         );
         assert_eq!(
             Version::from_str("12.11").unwrap(),
@@ -335,12 +331,15 @@ mod tests {
         assert!(Version::new(vec![0, 1, 2]) > Version::new(vec![0, 1, 1]));
         assert!(Version::new(vec![6, 5, 4]) > Version::new(vec![0, 22, 500]));
         assert!(
-            Version::new(vec![98, 54, 97]) == Version::new(vec![98, 54, 97])
+            Version::new(vec![98, 54, 97, 100])
+                == Version::new(vec![98, 54, 97, 100])
         );
         assert!(
             Version::new(vec![98, 54, 97]) >= Version::new(vec![98, 54, 97])
         );
-        assert!(Version::new(vec![0, 0, 2]) < Version::new(vec![0, 0, 3]));
+        assert!(
+            Version::new(vec![0, 0, 0, 2]) < Version::new(vec![0, 0, 0, 3])
+        );
         assert!(!(Version::new(vec![0, 0, 2]) < Version::new(vec![0, 0, 2])));
     }
 
