@@ -10,7 +10,10 @@ use walkdir::WalkDir;
 
 use crate::{
     pkg::{Glue, Package},
-    repo::{resolve_dependencies_for_packages, OnlinePackage},
+    repo::{
+        package_to_onlinepackage, resolve_dependencies_for_packages,
+        OnlinePackage,
+    },
     run::join_proper,
     store::get_dpt_dir,
 };
@@ -20,6 +23,7 @@ pub fn generate_environment_for_packages(
     pkgs_selected: &Vec<Package>,
     pkgs: &Vec<OnlinePackage>,
     out_path: &Path,
+    dev_env: bool,
 ) -> Result<()> {
     let packages_resolved =
         resolve_dependencies_for_packages(&pkgs, &pkgs_selected)?;
@@ -54,10 +58,19 @@ pub fn generate_environment_for_packages(
         generate_environment_for_directory(Path::new(&x.url), &out_path)?;
     }
 
-    let pkg_dirs = pkgs
-        .iter()
-        .map(|x| Path::new(&x.url).to_path_buf())
-        .collect();
+    let pkg_dirs = if dev_env {
+        pkgs_selected
+            .iter()
+            .map(|x| package_to_onlinepackage(&x, &pkgs))
+            .filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
+            .collect()
+    } else {
+        pkgs.to_owned()
+    }
+    .iter()
+    .map(|x| Path::new(&x.url).to_path_buf())
+    .collect();
     for glue in glues {
         generate_glue_for_directory(&glue, &pkg_dirs, &out_path)?;
     }

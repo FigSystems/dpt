@@ -29,3 +29,5 @@
 - Build packages with fakeroot
 
 - Remove `gen-pkg` command as it doesn't work with fakeroot.
+
+- Make `dev-env`s glues only have files from packages specified, not from the system.

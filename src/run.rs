@@ -233,6 +233,7 @@ pub fn run_multiple_packages(
         pkgs,
         &installed_packages,
         &pkg_path,
+        allow_non_dpt_file,
     )?;
 
     let cmd = cmd.unwrap_or(&pkgs[0].name);
