@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/fakeroot bash
 
 set -e
 
@@ -145,7 +145,7 @@ for x in "${pkgname[@]}"; do
 	if [[ -v USE_HOST_TOOLS ]]; then
 		$build_command
 	else
-		dpt dev-env bash coreutils "${makedepends[@]}" <<EOF
+		dpt dev-env bash coreutils fakeroot "${makedepends[@]}" <<EOF
 set -e
 set -u
 
@@ -171,7 +171,8 @@ $(glue_to_string "$glue_bin_variable" "$glue_glob_variable")
 	]
 )
 EOF
-	dpt gen-pkg "$pkgdir" "$oldpwd/$x-$ver.dpt"
+	# dpt gen-pkg "$pkgdir" "$oldpwd/$x-$ver.dpt"
+	tar --zstd -C "$pkgdir" -cf "$oldpwd/$x-$ver.dpt" "." 
 	rm -rf "$pkgdir"
 done
 

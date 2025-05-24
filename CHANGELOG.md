@@ -25,3 +25,5 @@
 - Switch all configuration files to RON instead of KDL.
 
 - Allow versions with more then two decimal places
+
+- Build packages with fakeroot
