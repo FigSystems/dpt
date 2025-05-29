@@ -312,7 +312,7 @@ pub fn install_pkg(
 
     let out_path: PathBuf = store.join(pkg.name.clone() + "-" + &pkg.version);
 
-    if out_path.exists() {
+    if out_path.exists() && out_path.join("dpt/.done").exists() {
         if reinstall {
             std::fs::remove_dir_all(&out_path)?;
         } else {
@@ -325,6 +325,11 @@ pub fn install_pkg(
     let mut archive = pkg::decompress_pkg_read(&file[..])?;
 
     archive.unpack(&out_path)?;
+
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(out_path.join("dpt"))?;
+    std::fs::write(out_path.join("dpt/.done"), "")?;
 
     Ok(InstallResult::Installed)
 }

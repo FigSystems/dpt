@@ -35,3 +35,5 @@
 - Fix newline issue with `/etc/group` generation.
 
 - Significantly speed up dpt index generation.
+
+- Make package installs fully atomic.

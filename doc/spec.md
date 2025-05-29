@@ -100,6 +100,7 @@ The directory structure of an dpt is quite basic, consisting of an FHS compliant
 ```
 example-1.2.3
 ├── dpt
+│    ├── .done # Signifies that the package was fully install. DON'T include this when you create a dpt file! This is created when the package is installed.
 │    └── pkg.ron # Package details. You write this.
 └── usr
     ├── bin
