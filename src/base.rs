@@ -64,7 +64,10 @@ fn build_group(dpt: &DptFile) -> String {
             }
             members_str.push_str(&format!(",{}", m));
         }
-        group.push_str(&format!("{}:*:{}:{}", g.groupname, g.gid, members_str));
+        group.push_str(&format!(
+            "{}:*:{}:{}\n",
+            g.groupname, g.gid, members_str
+        ));
     }
     group
 }
