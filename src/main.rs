@@ -373,6 +373,7 @@ fn main() -> Result<()> {
                             url: ent_path,
                             depends: cfg.depends,
                         });
+                        break;
                     }
                 }
             }
