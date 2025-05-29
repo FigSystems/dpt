@@ -351,7 +351,9 @@ fn main() -> Result<()> {
                 let mut pkg = decompress_pkg_read(std::fs::File::open(&ent)?)?;
                 for pkg_ent in pkg.entries()? {
                     let mut pkg_ent = pkg_ent?;
-                    if pkg_ent.path()? == Path::new("dpt/pkg.ron") {
+                    if pkg_ent.path()? == Path::new("dpt/pkg.ron")
+                        || pkg_ent.path()? == Path::new("./dpt/pkg.ron")
+                    {
                         let mut buf = String::new();
                         pkg_ent.read_to_string(&mut buf)?;
                         let cfg = get_package_config(&buf)?;
