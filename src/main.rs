@@ -81,7 +81,7 @@ fn main() -> Result<()> {
     let argc = std::env::args().count();
 
     if get_effective_uid() != 0 {
-        error!("FPKG needs to be installed setuid or run as root!");
+        error!("dpt needs to be installed setuid or run as root!");
         exit(exitcode::USAGE);
     }
 

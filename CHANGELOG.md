@@ -37,3 +37,5 @@
 - Significantly speed up dpt index generation.
 
 - Make package installs fully atomic.
+
+- Fix missed old `FPKG`
