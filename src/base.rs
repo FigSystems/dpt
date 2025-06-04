@@ -1,4 +1,4 @@
-use std::{os::unix::fs::symlink, path::Path};
+use std::{fs::hard_link, os::unix::fs::symlink, path::Path};
 
 use crate::{dpt_file::DptFile, store::get_dpt_dir};
 use anyhow::Result;
@@ -10,6 +10,8 @@ fn mkdir_p(d: &Path) -> Result<()> {
 
 fn rebuild_base_(dpt: &DptFile, base_dir: &Path) -> Result<()> {
     build_directory_structure(&base_dir)?;
+
+    hard_links(&base_dir)?;
 
     let passwd = build_passwd(&dpt);
     std::fs::write(base_dir.join("etc/passwd"), passwd)?;
@@ -33,6 +35,13 @@ fn build_directory_structure(base_dir: &Path) -> Result<()> {
     symlink("usr/bin", &base_dir.join("sbin"))?;
     symlink("bin", &base_dir.join("usr/sbin"))?;
     symlink("lib", &base_dir.join("usr/lib64"))?;
+    Ok(())
+}
+
+fn hard_links(base_dir: &Path) -> Result<()> {
+    if Path::new("/etc/fstab").exists() {
+        hard_link("/etc/fstab", base_dir.join("etc/fstab"))?;
+    }
     Ok(())
 }
 
