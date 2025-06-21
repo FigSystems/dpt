@@ -234,3 +234,13 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.ron`. All 
 - `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The required fields are `username`, `password`, `uid`, `gid`, `gecos`, `home` and `shell`.
 
 - `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The required fields are `groupname`, `gid`, and `members`. Note that `members` is a list of strings.
+
+- `services` A map of targets with a list of enabled services. e.g.
+  ```ron
+  services: {
+      "multi-user.target.wants": [
+          "stuff.service",
+          "sock.socket"
+      ]
+  }
+  ```

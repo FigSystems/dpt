@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use crate::pkg::Package;
 use crate::store::get_dpt_dir;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct User {
@@ -28,6 +29,7 @@ pub struct DptFile {
     pub packages: Vec<Package>,
     pub users: Vec<User>,
     pub groups: Vec<Group>,
+    pub services: Option<HashMap<String, Vec<String>>>,
 }
 
 pub fn get_dpt_file_location() -> PathBuf {
@@ -51,7 +53,8 @@ pub fn read_dpt_lock_file() -> Result<DptFile> {
 }
 
 pub fn parse_dpt_file(file: &str) -> Result<DptFile> {
-    Ok(ron::from_str(file)?)
+    let dpt_file = String::from_str("#![enable(implicit_some)]\n")?;
+    Ok(ron::from_str(&(dpt_file + file))?)
 }
 
 #[cfg(test)]
@@ -81,7 +84,8 @@ mod test {
         )
     ],
     users: [],
-    groups: []
+    groups: [],
+    services: {}
 )
         "#;
 
@@ -122,7 +126,8 @@ mod test {
         )
     ],
     packages: [],
-    groups: []
+    groups: [],
+    services: {}
 )
         "#;
 
@@ -179,7 +184,8 @@ mod test {
         )
     ],
     users: [],
-    packages: []
+    packages: [],
+    services: {}
 )
         "#;
 
@@ -205,5 +211,50 @@ mod test {
                 }
             ]
         )
+    }
+
+    #[test]
+    fn service_array_1() {
+        let doc = r#"
+(
+    packages: [],
+    groups: [],
+    users: [],
+    services: {
+        "multi-user.target": [
+            "getty@12.service",
+            "getty@4.service",
+            "random.socket"
+        ],
+        "graphical.target": [
+            "graphical.socket",
+            "stuff.service"
+        ]
+    }
+)
+        "#;
+
+        let out = parse_dpt_file(&doc).unwrap();
+
+        assert_eq!(
+            out.services,
+            Some(HashMap::from([
+                (
+                    "multi-user.target".to_string(),
+                    vec![
+                        "getty@12.service".to_string(),
+                        "getty@4.service".to_string(),
+                        "random.socket".to_string()
+                    ]
+                ),
+                (
+                    "graphical.target".to_string(),
+                    vec![
+                        "graphical.socket".to_string(),
+                        "stuff.service".to_string()
+                    ]
+                )
+            ]))
+        );
     }
 }

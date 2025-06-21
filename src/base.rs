@@ -21,6 +21,8 @@ fn rebuild_base_(dpt: &DptFile, base_dir: &Path) -> Result<()> {
 
     let login_dot_defs = build_login_dot_defs();
     std::fs::write(base_dir.join("etc/login.defs"), login_dot_defs)?;
+
+    build_systemd_service_files(&dpt, &base_dir)?;
     Ok(())
 }
 
@@ -144,6 +146,59 @@ PREVENT_NO_AUTH       superuser
     .to_string()
 }
 
+fn build_systemd_service_files(dpt: &DptFile, base_dir: &Path) -> Result<()> {
+    let system_dir = base_dir.join("etc/systemd/system");
+
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .create(&system_dir)?;
+    if let Some(services) = &dpt.services {
+        for (target, services) in services {
+            if target.contains("/") {
+                log::warn!(
+                    "Invalid target specification in dpt file! Ignoring..."
+                );
+                continue;
+            }
+
+            let target_dir = system_dir.join(target.to_string() + ".wants");
+
+            if !target_dir.is_dir() {
+                std::fs::DirBuilder::new()
+                    .recursive(true)
+                    .create(&target_dir)?;
+            }
+
+            for service in services {
+                if service.contains("/") {
+                    log::warn!(
+                        "Invalid service specification in dpt file! Ignoring..."
+                    );
+                    continue;
+                }
+                let target = Path::new("/usr/lib/systemd/system/")
+                    .join(filter_systemd_service(service));
+                let source = target_dir.join(service);
+                std::os::unix::fs::symlink(target, source)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Converts getty@tty1.service -> getty@.service
+pub fn filter_systemd_service(s: &str) -> String {
+    let x: Vec<&str> = s.split("@").collect();
+    if x.len() != 2 {
+        return s.to_string();
+    }
+    let y: Vec<&str> = x[1].split(".").collect();
+    if y.len() != 2 {
+        return s.to_string();
+    }
+    x[0].to_string() + "@." + y[1]
+}
+
 pub fn rebuild_base(dpt: &DptFile) -> Result<()> {
     let dpt_dir = get_dpt_dir();
     let base_dir = dpt_dir.join("base");
@@ -167,4 +222,18 @@ fn remove_if_exists(p: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_filter_systemd_service() {
+        assert_eq!(
+            filter_systemd_service("getty@tty1.service"),
+            "getty@.service".to_string()
+        );
+    }
 }
