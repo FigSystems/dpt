@@ -1,6 +1,7 @@
 use log::error;
 use nix::mount::MsFlags;
 use std::{
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -86,6 +87,7 @@ pub fn run_pkg(
     args: Vec<String>,
     cmd: Option<&str>,
     allow_non_dpt_file: bool,
+    replace_current_process: bool,
 ) -> Result<i32> {
     run_multiple_packages(
         &vec![pkg.clone()],
@@ -93,6 +95,7 @@ pub fn run_pkg(
         args,
         cmd,
         allow_non_dpt_file,
+        replace_current_process,
     )
 }
 
@@ -101,6 +104,7 @@ pub fn run_pkg_(
     uid: u32,
     args: Vec<String>,
     cmd: &str,
+    replace_current_process: bool,
 ) -> Result<i32> {
     std::fs::DirBuilder::new()
         .recursive(true)
@@ -147,30 +151,41 @@ pub fn run_pkg_(
     let mut code: i32 = 0;
     if !cleanup {
         let mut proc = std::process::Command::new(std::env::current_exe()?);
-        let proc: Arc<Mutex<std::process::Child>> = Arc::new(Mutex::new(
-            proc.arg("chroot-not-intended-for-interactive-use")
-                .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
-                    "Failed to parse directory {} into string!",
-                    &out_dir.display()
-                ))?)
-                .arg(uid.to_string())
-                .arg(Path::new(prefix).join(&cmd))
-                .args(args)
-                .spawn()?,
-        ));
-        let proc_arc_clone = Arc::clone(&proc);
-        ctrlc::set_handler(move || {
-            let l = proc_arc_clone.lock();
-            if let Ok(mut x) = l {
-                let _ = x.kill();
-            };
-        })
-        .context("Failed to register ctrlc signal handler")?;
-        let l = proc.lock();
-        if let Ok(mut x) = l {
-            code = x.wait()?.code().unwrap_or(89);
+        let proc = proc
+            .arg("chroot-not-intended-for-interactive-use")
+            .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
+                "Failed to parse directory {} into string!",
+                &out_dir.display()
+            ))?)
+            .arg(uid.to_string())
+            .arg(Path::new(prefix).join(&cmd))
+            .arg(if replace_current_process {
+                "replace"
+            } else {
+                "new"
+            })
+            .args(args);
+        if replace_current_process {
+            let err = proc.exec();
+            bail!("Failed to run process! Error: {err}");
         } else {
-            code = 243;
+            let proc: Arc<Mutex<std::process::Child>> =
+                Arc::new(Mutex::new(proc.spawn()?));
+
+            let proc_arc_clone = Arc::clone(&proc);
+            ctrlc::set_handler(move || {
+                let l = proc_arc_clone.lock();
+                if let Ok(mut x) = l {
+                    let _ = x.kill();
+                };
+            })
+            .context("Failed to register ctrlc signal handler")?;
+            let l = proc.lock();
+            if let Ok(mut x) = l {
+                code = x.wait()?.code().unwrap_or(89);
+            } else {
+                code = 243;
+            }
         }
     }
     let mut binds2: Vec<PathBuf> = Vec::new();
@@ -212,6 +227,7 @@ pub fn run_multiple_packages(
     args: Vec<String>,
     cmd: Option<&str>,
     allow_non_dpt_file: bool,
+    replace_current_process: bool,
 ) -> Result<i32> {
     if pkgs.is_empty() {
         bail!("No packages specified!");
@@ -238,7 +254,7 @@ pub fn run_multiple_packages(
 
     let cmd = cmd.unwrap_or(&pkgs[0].name);
 
-    let code = run_pkg_(&pkg_path, uid, args, cmd)?;
+    let code = run_pkg_(&pkg_path, uid, args, cmd, replace_current_process)?;
     std::fs::remove_dir_all(pkg_path)?;
 
     Ok(code)

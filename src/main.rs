@@ -22,6 +22,7 @@ pub const PROGRESS_CHARS: &str = "##-";
 use std::{
     fs::write,
     io::Read,
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::exit,
     str::FromStr,
@@ -32,7 +33,7 @@ use base::rebuild_base;
 use dpt_file::read_dpt_file;
 use indicatif::ProgressIterator;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use colog::format::CologStyle;
 use log::{error, warn, Level};
 use pkg::{
@@ -103,6 +104,11 @@ fn main() -> Result<()> {
             args[1..].to_vec(),
             Some(me),
             false,
+            if me == "init" && uid == 0 {
+                true
+            } else {
+                false
+            },
         )?);
     }
 
@@ -193,7 +199,7 @@ fn main() -> Result<()> {
                     run_args.push(arg.clone());
                 }
             }
-            exit(run::run_pkg(&pkg, uid, run_args, None, false)?);
+            exit(run::run_pkg(&pkg, uid, run_args, None, false, false)?);
         }
         "run-multi" => {
             if argc < 3 {
@@ -247,6 +253,7 @@ fn main() -> Result<()> {
                 uid,
                 run_args,
                 cmd,
+                false,
                 false,
             )?);
         }
@@ -321,6 +328,7 @@ fn main() -> Result<()> {
                 run_args,
                 cmd,
                 true,
+                false,
             )?);
         }
         "gen-index" => {
@@ -390,11 +398,12 @@ fn main() -> Result<()> {
         }
         "chroot-not-intended-for-interactive-use" => {
             command_requires_root_uid();
-            if argc < 5 {
+            if argc < 6 {
                 error!("Not enough arguments!");
                 exit(exitcode::USAGE);
             }
             let uid: u32 = args[3].parse()?;
+            let replace_current_process = args[5] == "replace";
             let prev_dir =
                 std::env::current_dir().unwrap_or(PathBuf::from_str("/")?);
             std::env::set_current_dir(&args[2])?;
@@ -408,30 +417,35 @@ fn main() -> Result<()> {
             set_current_uid(uid)?;
             set_effective_uid(get_current_uid())?;
             let mut p = std::process::Command::new(&args[4]);
-            if argc > 5 {
-                for a in &args[5..] {
+            if argc > 6 {
+                for a in &args[6..] {
                     p.arg(a);
                 }
             }
-            let p: Arc<Mutex<std::process::Child>> =
-                Arc::new(Mutex::new(p.spawn()?));
-
-            let proc_arc_clone = Arc::clone(&p);
-            ctrlc::set_handler(move || {
-                let l = proc_arc_clone.lock();
-                if let Ok(mut x) = l {
-                    let _ = x.kill();
-                };
-            })
-            .context("Failed to register ctrlc singal handler")?;
-            let l = p.lock();
-            let exit_code = if let Ok(mut x) = l {
-                x.wait()?.code().unwrap_or(89)
+            if replace_current_process {
+                let err = p.exec();
+                bail!("Failed to run process! Error: {err}");
             } else {
-                243
-            };
+                let p: Arc<Mutex<std::process::Child>> =
+                    Arc::new(Mutex::new(p.spawn()?));
 
-            exit(exit_code);
+                let proc_arc_clone = Arc::clone(&p);
+                ctrlc::set_handler(move || {
+                    let l = proc_arc_clone.lock();
+                    if let Ok(mut x) = l {
+                        let _ = x.kill();
+                    };
+                })
+                .context("Failed to register ctrlc singal handler")?;
+                let l = p.lock();
+                let exit_code = if let Ok(mut x) = l {
+                    x.wait()?.code().unwrap_or(89)
+                } else {
+                    243
+                };
+
+                exit(exit_code);
+            }
         }
         cmd => {
             error!("Unknown command {}!", cmd);
