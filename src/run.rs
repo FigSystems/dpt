@@ -151,7 +151,9 @@ pub fn run_pkg_(
     }
     let mut code: i32 = 0;
     if !cleanup {
-        let mut proc = std::process::Command::new(std::env::current_exe()?);
+        let mut proc = std::process::Command::new(
+            std::env::current_exe().unwrap_or(PathBuf::from("/dpt/dpt")),
+        );
         let proc = proc
             .arg("chroot-not-intended-for-interactive-use")
             .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
