@@ -19,6 +19,7 @@ pub const PROGRESS_STYLE: &str =
     "{msg} [{wide_bar:.green/blue}] {human_pos}/{human_len} ({eta})";
 pub const PROGRESS_CHARS: &str = "##-";
 
+use log::info;
 use std::{
     fs::write,
     io::Read,
@@ -98,6 +99,10 @@ fn main() -> Result<()> {
         let pkg = get_package_for_bin(me, &packages)?;
         let uid = get_current_uid();
         set_current_uid(0)?;
+        if me == "init" && uid == 0 {
+            info!("DPT loaded!");
+            info!("Starting init process!");
+        }
         exit(run::run_pkg(
             &pkg.to_package(),
             uid,
