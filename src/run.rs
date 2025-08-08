@@ -120,6 +120,7 @@ pub fn run_pkg_(
 
     for bind in vec![
         "dev", "mnt", "media", "run", "var", "home", "tmp", "proc", "tmp",
+        "sys",
     ] {
         let dir = Path::new("/").join(bind);
         let dir_target = out_dir.join(bind);
