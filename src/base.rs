@@ -31,6 +31,7 @@ fn build_directory_structure(base_dir: &Path) -> Result<()> {
     mkdir_p(&base_dir.join("usr/bin"))?;
     mkdir_p(&base_dir.join("usr/lib"))?;
     mkdir_p(&base_dir.join("etc"))?;
+    symlink("/proc/self/mounts", &base_dir.join("etc/mtab"))?;
     symlink("usr/lib", &base_dir.join("lib"))?;
     symlink("usr/lib", &base_dir.join("lib64"))?;
     symlink("usr/bin", &base_dir.join("bin"))?;
