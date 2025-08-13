@@ -148,11 +148,11 @@ pub fn run_pkg_(
         .recursive(true)
         .create(&out_dir)?;
 
-    let fpkg_dir = get_dpt_dir();
+    let dpt_dir = get_dpt_dir();
 
     // Bind mount dpt dir inside the out_dir
-    let fpkg_target = join_proper(&out_dir, &fpkg_dir)?;
-    bind_mount(&fpkg_dir, &fpkg_target)?;
+    let dpt_target = join_proper(&out_dir, &dpt_dir)?;
+    bind_mount(&dpt_dir, &dpt_target)?;
 
     let mut binds = Vec::<PathBuf>::new();
 
@@ -229,7 +229,7 @@ pub fn run_pkg_(
             }
         }
     }
-    binds.push(fpkg_target);
+    binds.push(dpt_target);
 
     for bind in &binds {
         unmount_recursive(bind)?;
