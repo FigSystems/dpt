@@ -20,6 +20,7 @@ pub const PROGRESS_STYLE: &str =
 pub const PROGRESS_CHARS: &str = "##-";
 
 use log::info;
+use nix::mount::MsFlags;
 use std::{
     fs::write,
     io::Read,
@@ -99,21 +100,50 @@ fn main() -> Result<()> {
         let pkg = get_package_for_bin(me, &packages)?;
         let uid = get_current_uid();
         set_current_uid(0)?;
-        if me == "init" && uid == 0 {
+        let replace_current_process = if std::process::id() == 1 && uid == 0 {
             info!("DPT loaded!");
             info!("Starting init process!");
-        }
+            match nix::mount::mount(
+                Some("proc"),
+                "/proc",
+                Some("proc"),
+                MsFlags::empty(),
+                None::<&str>,
+            ) {
+                Ok(()) => {}
+                Err(x) => bail!("Failed to mount /proc!: {x}"),
+            }
+            match nix::mount::mount(
+                Some("tmpfs"),
+                "/tmp",
+                Some("tmpfs"),
+                MsFlags::empty(),
+                None::<&str>,
+            ) {
+                Ok(()) => {}
+                Err(x) => bail!("Failed to mount /tmpfs!: {x}"),
+            }
+            match nix::mount::mount(
+                Some("sys"),
+                "/sys",
+                Some("sysfs"),
+                MsFlags::empty(),
+                None::<&str>,
+            ) {
+                Ok(()) => {}
+                Err(x) => bail!("Failed to mount /sys!: {x}"),
+            }
+            true
+        } else {
+            false
+        };
         exit(run::run_pkg(
             &pkg.to_package(),
             uid,
             args[1..].to_vec(),
             Some(me),
             false,
-            if me == "init" && uid == 0 {
-                true
-            } else {
-                false
-            },
+            replace_current_process,
         )?);
     }
 
