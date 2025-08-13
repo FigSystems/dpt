@@ -1,6 +1,8 @@
 use log::error;
 use nix::mount::MsFlags;
 use std::{
+    fs::File,
+    io::{BufRead, BufReader},
     os::unix::process::CommandExt,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -63,6 +65,42 @@ pub fn bind_mount_(src: &Path, target: &Path) -> Result<(), std::io::Error> {
         MsFlags::MS_SLAVE.union(MsFlags::MS_REC),
         Option::<&Path>::None,
     )?;
+    Ok(())
+}
+
+fn unmount_recursive<P: AsRef<Path>>(target: P) -> Result<()> {
+    let target_path = target.as_ref().canonicalize()?; // get absolute path
+
+    // Step 1: Read /proc/self/mountinfo
+    let file = File::open("/proc/self/mountinfo")?;
+    let reader = BufReader::new(file);
+
+    let mut mounts = Vec::new();
+
+    for line in reader.lines() {
+        let line = line?;
+        // Format: ID parentID major:minor root mount_point ...
+        // Example: 27 24 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 5 {
+            continue;
+        }
+        let mount_point = PathBuf::from(parts[4]);
+        if mount_point.starts_with(&target_path) {
+            mounts.push(mount_point);
+        }
+    }
+
+    // Step 2: Sort deepest paths first so we unmount children before parents
+    mounts.sort_by(|a, b| b.components().count().cmp(&a.components().count()));
+
+    // Step 3: Unmount each path
+    for mnt in mounts {
+        if let Err(e) = unmount(&mnt, UnmountFlags::FORCE) {
+            eprintln!("Failed to unmount {}: {}", mnt.display(), e);
+        }
+    }
+
     Ok(())
 }
 
@@ -191,35 +229,11 @@ pub fn run_pkg_(
             }
         }
     }
-    let mut binds2: Vec<PathBuf> = Vec::new();
-    let mut binds = binds;
     binds.push(fpkg_target);
 
-    for _ in 0..10 {
-        for bind in &binds {
-            let e = unmount(&bind, UnmountFlags::DETACH);
-            if e.is_err() {
-                binds2.push(bind.clone());
-            } else {
-                if bind.is_dir() {
-                    if bind.read_dir()?.next().is_some() {
-                        for p in walkdir::WalkDir::new(&bind) {
-                            if let Ok(p) = p {
-                                let _ =
-                                    unmount(&p.path(), UnmountFlags::empty());
-                            }
-                        }
-
-                        binds2.push(bind.clone());
-                    }
-                }
-            }
-        }
-        binds = binds2.clone();
-        binds2 = Vec::new();
+    for bind in &binds {
+        unmount_recursive(bind)?;
     }
-
-    assert!(binds2.is_empty(), "Terminated to prevent data loss");
 
     Ok(code)
 }
