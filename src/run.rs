@@ -48,9 +48,15 @@ pub fn make_path_relative(a: &Path) -> PathBuf {
 }
 
 /// Makes src's contents show up at target
-pub fn bind_mount_(src: &Path, target: &Path) -> Result<(), std::io::Error> {
+pub fn bind_mount_(
+    src: &Path,
+    target: &Path,
+    recursive: bool,
+) -> Result<(), std::io::Error> {
     let mut flags = MsFlags::MS_BIND;
-    flags.insert(MsFlags::MS_REC);
+    if recursive {
+        flags.insert(MsFlags::MS_REC);
+    }
     nix::mount::mount(
         Option::<&Path>::Some(src),
         target,
@@ -58,11 +64,15 @@ pub fn bind_mount_(src: &Path, target: &Path) -> Result<(), std::io::Error> {
         flags,
         Option::<&Path>::None,
     )?;
+    let mut flags2 = MsFlags::MS_SLAVE;
+    if recursive {
+        flags2.insert(MsFlags::MS_REC);
+    }
     nix::mount::mount(
         Option::<&Path>::None,
         target,
         Option::<&Path>::None,
-        MsFlags::MS_SLAVE.union(MsFlags::MS_REC),
+        flags2,
         Option::<&Path>::None,
     )?;
     Ok(())
@@ -96,7 +106,7 @@ fn unmount_recursive<P: AsRef<Path>>(target: P) -> Result<()> {
 
     // Step 3: Unmount each path
     for mnt in mounts {
-        if let Err(e) = unmount(&mnt, UnmountFlags::FORCE) {
+        if let Err(e) = unmount(&mnt, UnmountFlags::empty()) {
             eprintln!("Failed to unmount {}: {}", mnt.display(), e);
         }
     }
@@ -104,7 +114,7 @@ fn unmount_recursive<P: AsRef<Path>>(target: P) -> Result<()> {
     Ok(())
 }
 
-pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
+pub fn bind_mount(src: &Path, target: &Path, recursive: bool) -> Result<()> {
     if src.is_dir() {
         std::fs::DirBuilder::new().recursive(true).create(&target)?;
     } else {
@@ -113,7 +123,7 @@ pub fn bind_mount(src: &Path, target: &Path) -> Result<()> {
             .create(&target.parent().unwrap_or(Path::new("/")))?;
         std::fs::File::create(&target)?;
     }
-    match bind_mount_(&src, &target) {
+    match bind_mount_(&src, &target, recursive) {
         Err(x) => bail!(x.to_string()),
         Ok(_) => Ok(()),
     }
@@ -149,16 +159,16 @@ pub fn run_pkg_(
         .create(&out_dir)?;
 
     let dpt_dir = get_dpt_dir();
+    bind_mount(out_dir, out_dir, true)?;
 
     // Bind mount dpt dir inside the out_dir
     let dpt_target = join_proper(&out_dir, &dpt_dir)?;
-    bind_mount(&dpt_dir, &dpt_target)?;
+    bind_mount(&dpt_dir, &dpt_target, false)?;
 
     let mut binds = Vec::<PathBuf>::new();
 
     for bind in vec![
-        "dev", "mnt", "media", "run", "var", "home", "tmp", "proc", "tmp",
-        "sys",
+        "dev", "mnt", "media", "run", "var", "home", "tmp", "proc", "sys",
     ] {
         let dir = Path::new("/").join(bind);
         let dir_target = out_dir.join(bind);
@@ -168,7 +178,7 @@ pub fn run_pkg_(
         if !dir.exists() {
             continue;
         }
-        bind_mount(&dir, &dir_target)?;
+        bind_mount(&dir, &dir_target, true)?;
         binds.push(dir_target);
     }
 
@@ -229,6 +239,7 @@ pub fn run_pkg_(
             }
         }
     }
+    unmount(out_dir, UnmountFlags::DETACH)?;
     binds.push(dpt_target);
 
     for bind in &binds {
