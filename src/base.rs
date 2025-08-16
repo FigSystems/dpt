@@ -1,4 +1,8 @@
-use std::{fs::hard_link, os::unix::fs::symlink, path::Path};
+use std::{
+    fs::{hard_link, Permissions},
+    os::unix::fs::{symlink, PermissionsExt},
+    path::Path,
+};
 
 use crate::{dpt_file::DptFile, store::get_dpt_dir};
 use anyhow::Result;
@@ -18,6 +22,13 @@ fn rebuild_base_(dpt: &DptFile, base_dir: &Path) -> Result<()> {
 
     let group = build_group(&dpt);
     std::fs::write(base_dir.join("etc/group"), group)?;
+
+    let shadow = build_shadow(&dpt);
+    std::fs::write(base_dir.join("etc/shadow"), shadow)?;
+    std::fs::set_permissions(
+        base_dir.join("etc/shadow"),
+        Permissions::from_mode(0o600),
+    )?;
 
     let login_dot_defs = build_login_dot_defs();
     std::fs::write(base_dir.join("etc/login.defs"), login_dot_defs)?;
@@ -82,6 +93,15 @@ fn build_group(dpt: &DptFile) -> String {
         ));
     }
     group
+}
+
+fn build_shadow(dpt: &DptFile) -> String {
+    let mut shadow = String::new();
+    for user in dpt.users.iter() {
+        shadow
+            .push_str(&format!("{}:{}:::::::\n", user.username, user.password));
+    }
+    shadow
 }
 
 fn build_login_dot_defs() -> String {
