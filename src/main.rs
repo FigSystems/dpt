@@ -133,6 +133,29 @@ fn main() -> Result<()> {
                 Ok(()) => {}
                 Err(x) => bail!("Failed to mount /sys!: {x}"),
             }
+            match nix::mount::mount(
+                Some("cgroup2"),
+                "/sys/fs/cgroup",
+                Some("cgroup2"),
+                MsFlags::empty(),
+                None::<&str>,
+            ) {
+                Ok(()) => {}
+                Err(x) => bail!("Failed to mount /sys/fs/cgroup!: {x}"),
+            }
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create("/dev/pts")?;
+            match nix::mount::mount(
+                Some("devpts"),
+                "/dev/pts",
+                Some("devpts"),
+                MsFlags::empty(),
+                None::<&str>,
+            ) {
+                Ok(()) => {}
+                Err(x) => bail!("Failed to mount /dev/pts!: {x}"),
+            }
             true
         } else {
             false
