@@ -92,6 +92,11 @@ fn main() -> Result<()> {
         .split("/")
         .last()
         .context("Failed to get last part of $0 !")?;
+    let me = if me.starts_with("-") {
+        me.strip_prefix("-").unwrap()
+    } else {
+        me
+    };
     if me != "dpt"
         && args.get(1)
             != Some(&"chroot-not-intended-for-interactive-use".to_string())
