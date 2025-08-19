@@ -20,7 +20,10 @@ pub const PROGRESS_STYLE: &str =
 pub const PROGRESS_CHARS: &str = "##-";
 
 use log::info;
-use nix::mount::MsFlags;
+use nix::{
+    mount::MsFlags,
+    sched::{unshare, CloneFlags},
+};
 use std::{
     fs::write,
     io::Read,
@@ -30,6 +33,7 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex},
 };
+use sys_mount::{unmount, UnmountFlags};
 
 use base::rebuild_base;
 use dpt_file::read_dpt_file;
@@ -99,7 +103,10 @@ fn main() -> Result<()> {
     };
     if me != "dpt"
         && args.get(1)
-            != Some(&"chroot-not-intended-for-interactive-use".to_string())
+            != Some(
+                &"run-pkg-second-stage-not-intended-for-interactive-use"
+                    .to_string(),
+            )
     {
         let packages = get_installed_packages()?;
         let pkg = get_package_for_bin(me, &packages)?;
@@ -181,7 +188,7 @@ fn main() -> Result<()> {
         exit(exitcode::USAGE);
     }
 
-    if args[1] != "chroot-not-intended-for-interactive-use"
+    if args[1] != "run-pkg-second-stage-not-intended-for-interactive-use"
         && args[1] != "run"
         && args[1] != "run-multi"
         && args[1] != "dev-env"
@@ -459,7 +466,7 @@ fn main() -> Result<()> {
                 )?,
             )?;
         }
-        "chroot-not-intended-for-interactive-use" => {
+        "run-pkg-second-stage-not-intended-for-interactive-use" => {
             command_requires_root_uid();
             if argc < 6 {
                 error!("Not enough arguments!");
@@ -469,23 +476,71 @@ fn main() -> Result<()> {
             let replace_current_process = args[5] == "replace";
             let prev_dir =
                 std::env::current_dir().unwrap_or(PathBuf::from_str("/")?);
-            std::env::set_current_dir(&args[2])?;
-            std::os::unix::fs::chroot(".")?;
+            let out_dir = Path::new(&args[2]);
 
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(&out_dir)?;
+
+            let dpt_dir = get_dpt_dir();
+            unshare(CloneFlags::CLONE_NEWNS)?;
+            nix::mount::mount(
+                Option::<&Path>::None,
+                "/",
+                Option::<&Path>::None,
+                MsFlags::MS_REC | MsFlags::MS_SLAVE,
+                Option::<&Path>::None,
+            )?;
+            run::bind_mount(out_dir, out_dir, true)?;
+
+            // Bind mount dpt dir inside the out_dir
+            let dpt_target = run::join_proper(&out_dir, &dpt_dir)?;
+            run::bind_mount(&dpt_dir, &dpt_target, false)?;
+
+            let mut binds = Vec::<PathBuf>::new();
+
+            for bind in vec![
+                "dev", "mnt", "media", "run", "var", "home", "tmp", "proc",
+                "sys",
+            ] {
+                let dir = Path::new("/").join(bind);
+                let dir_target = out_dir.join(bind);
+                if dir_target.exists() {
+                    continue;
+                }
+                if !dir.exists() {
+                    continue;
+                }
+                run::bind_mount(&dir, &dir_target, true)?;
+                binds.push(dir_target);
+            }
+
+            std::env::set_current_dir(out_dir)?;
+            // std::os::unix::fs::chroot(".")?;
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(".old_root")?;
+            nix::unistd::pivot_root(".", ".old_root")?;
             if prev_dir.is_dir() {
                 std::env::set_current_dir(prev_dir)?;
             } else {
                 std::env::set_current_dir("/")?;
             }
-            set_current_uid(uid)?;
-            set_effective_uid(get_current_uid())?;
+            unmount("/.old_root", UnmountFlags::DETACH)?;
             let mut p = std::process::Command::new(&args[4]);
+            unsafe {
+                p.pre_exec(move || {
+                    set_current_uid(uid.clone())?;
+                    set_effective_uid(get_current_uid())?;
+                    Ok(())
+                })
+            };
             if argc > 6 {
                 for a in &args[6..] {
                     p.arg(a);
                 }
             }
-            if replace_current_process {
+            exit(if replace_current_process {
                 let err = p.exec();
                 bail!("Failed to run process! Error: {err}");
             } else {
@@ -507,8 +562,14 @@ fn main() -> Result<()> {
                     243
                 };
 
-                exit(exit_code);
-            }
+                binds.push(dpt_target);
+
+                for bind in &binds {
+                    run::unmount_recursive(bind)?;
+                }
+
+                exit_code
+            })
         }
         cmd => {
             error!("Unknown command {}!", cmd);

@@ -14,10 +14,7 @@ use sys_mount::{unmount, UnmountFlags};
 
 use crate::{
     pkg::Package,
-    store::{
-        get_dpt_dir, get_installed_packages,
-        get_installed_packages_without_dpt_file,
-    },
+    store::{get_installed_packages, get_installed_packages_without_dpt_file},
 };
 
 pub fn get_run_location() -> PathBuf {
@@ -78,7 +75,7 @@ pub fn bind_mount_(
     Ok(())
 }
 
-fn unmount_recursive<P: AsRef<Path>>(target: P) -> Result<()> {
+pub fn unmount_recursive<P: AsRef<Path>>(target: P) -> Result<()> {
     let target_path = target.as_ref().canonicalize()?; // get absolute path
 
     // Step 1: Read /proc/self/mountinfo
@@ -154,34 +151,6 @@ pub fn run_pkg_(
     cmd: &str,
     replace_current_process: bool,
 ) -> Result<i32> {
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .create(&out_dir)?;
-
-    let dpt_dir = get_dpt_dir();
-    bind_mount(out_dir, out_dir, true)?;
-
-    // Bind mount dpt dir inside the out_dir
-    let dpt_target = join_proper(&out_dir, &dpt_dir)?;
-    bind_mount(&dpt_dir, &dpt_target, false)?;
-
-    let mut binds = Vec::<PathBuf>::new();
-
-    for bind in vec![
-        "dev", "mnt", "media", "run", "var", "home", "tmp", "proc", "sys",
-    ] {
-        let dir = Path::new("/").join(bind);
-        let dir_target = out_dir.join(bind);
-        if dir_target.exists() {
-            continue;
-        }
-        if !dir.exists() {
-            continue;
-        }
-        bind_mount(&dir, &dir_target, true)?;
-        binds.push(dir_target);
-    }
-
     let mut cleanup = false;
 
     let mut prefix = "/";
@@ -203,7 +172,7 @@ pub fn run_pkg_(
             std::env::current_exe().unwrap_or(PathBuf::from("/dpt/dpt")),
         );
         let proc = proc
-            .arg("chroot-not-intended-for-interactive-use")
+            .arg("run-pkg-second-stage-not-intended-for-interactive-use")
             .arg(&out_dir.to_str().ok_or(anyhow::anyhow!(
                 "Failed to parse directory {} into string!",
                 &out_dir.display()
@@ -238,12 +207,6 @@ pub fn run_pkg_(
                 code = 243;
             }
         }
-    }
-    unmount(out_dir, UnmountFlags::DETACH)?;
-    binds.push(dpt_target);
-
-    for bind in &binds {
-        unmount_recursive(bind)?;
     }
 
     Ok(code)
