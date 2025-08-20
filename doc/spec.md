@@ -6,13 +6,15 @@ This document outlines the dpt method of distributing software. Dpt is centered 
 
 - Stability: I should be able to install many combinations of packages and not have anything break. Further, if something does break, I should be able to easily roll back.
 
-Reproducibility could be defined as consistent outcomes. When a software developer releases a package, they want it to work on all system configurations. Conventional tools fail on this point as the developer have no idea what configuration their users may have on their system. dpt excels in this area, however, as all applications have a well defined environment that the developer controls, unaffected by any other packages the user has installed.
+- Convenience: There may be a case where I want to install multiple versions of the same package, and choose which one I run. Or where I have two different programs I would like to install, but they both require a different version of the same library. DPT can do this without any problems since each application can have it's own dependencies, without altering a global state.
+
+Reproducibility could be defined as consistent outcomes. When a software developer releases a package, they want it to work on all system configurations. Conventional tools fail on this point as the developer have no idea what arrangement their users may have on their system. dpt excels in this area, however, as all applications have a well defined environment that the developer controls, unaffected by any other packages the user has installed.
 
 Stability is another important topic. Any package manager should be stable, and never require breaking another package to install another. Dependency hell is an unfortunate result from conventional solutions, but efforts to resolve this have been few and far between.
 
 There are a bunch of terms and ideas used in this document.
 
-- dpt directory: The dpt directory is located by default at `/dpt` but the location can be customized by placing a directory name in the file `/etc/dpt/dir`
+- dpt directory: The dpt directory is located by default at `/dpt` but the location can be customized by placing a directory name in the file `/dpt/dir`
 
 - dpt store: The directory containing all of the packages installed in the system, located at `${dpt_directory}/store`.
 
@@ -22,7 +24,7 @@ There are a bunch of terms and ideas used in this document.
 
 # Command line usage
 
-Covers the basics of dpt’s command line usage. Do note that dpt should be installed SUID as running packages requires the `chroot` syscall.
+Covers the basics of dpt’s command line usage. Do note that dpt MUST be installed SUID as dpt has to deal with root-owned files for each package, even when the user running it is not root.
 
 ## dpt rebuild
 
@@ -36,9 +38,9 @@ Runs the package specified. All other arguments will be passed to the package.
 
 Runs the first package specified in an environment that also includes the others.
 
-## dpt dev-env [packages] -- [args]
+## dpt dev-env \[packages\] -- \[args\]
 
-Fetches the packages if they are not found into the store, and runs them in the same ways as run-multi does. Only intended for the purpose of `makedpt` and other development related tasks.
+Fetches the packages if they are not found into the store, and runs them in the same ways as run-multi does. Only intended for the purpose of `makedpt` and other development related tasks. Note that tis mode will not follow any glues, since it is intended to be a clean development environment.
 
 ## dpt gen-pkg
 
@@ -100,7 +102,7 @@ The directory structure of an dpt is quite basic, consisting of an FHS compliant
 ```
 example-1.2.3
 ├── dpt
-│    ├── .done # Signifies that the package was fully install. DON'T include this when you create a dpt file! This is created when the package is installed.
+│    ├── .done # Signifies that the package was fully installed. DON'T include this when you create a dpt file! This is created when the package is installed.
 │    └── pkg.ron # Package details. You write this.
 └── usr
     ├── bin
@@ -158,7 +160,7 @@ For convenience in the process of generating packages, one can write an DPTBUILD
 - `pkgver`: The version of the package.
 - `depends`: The dependencies.
 - `makedepends`: The build dependencies.
-- `build()`: The function that runs the build.
+- `build()`: The function that runs the build. Install all contents in `$pkgdir`.
 - `glue_bin`: If defined, the `Bin` glue will be specified.
 - `glue_glob`: If defined, each item in this list will be an entry for the `Glob` glue.
 
@@ -209,7 +211,7 @@ For dependency resolving, dpt uses [PubGrub](https://crates.io/crates/pubgrub) d
 
 # Package running
 
-When running a package, dpt will bind `/home`, `/dev`, `/mnt`, `/media`, `/run`, `/var`, `/tmp`, `${dpt_directory}` inside the environment. If any conflicts with the aforementioned directories and the directories from the package(s) occur, the package's directories will be given priority. The runtime directory is located at `${dpt_directory}/run`, which is where the environment will be created.
+When running a package, dpt will bind `/home`, `/dev`, `/mnt`, `/media`, `/run`, `/var`, `/tmp`, `${dpt_directory}`, `/sys` inside the environment. If any conflicts with the aforementioned directories and the directories from the package(s) occur, the package's directories will be given priority. The runtime directory is located at `${dpt_directory}/run`, which is where the environment will be created.
 
 _Example_
 
@@ -231,14 +233,14 @@ The dpt system configuration file is located at `${dpt_directory}/dpt.ron`. All 
 
 - `packages` An array of packages. If the version is left blank, the newest version will be used.
 
-- `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file. The required fields are `username`, `password`, `uid`, `gid`, `gecos`, `home` and `shell`.
+- `users` A list of users on the system. This array will be used to auto-generate the `/etc/passwd` file and the `/etc/shadow` file. The required fields are `username`, `password`, `uid`, `gid`, `gecos`, `home` and `shell`.
 
 - `groups` A list of groups on the system, and their members. This array will be used to auto-generate `/etc/group`. The required fields are `groupname`, `gid`, and `members`. Note that `members` is a list of strings.
 
 - `services` A map of targets with a list of enabled services. e.g.
   ```ron
   services: {
-      "multi-user.target.wants": [
+      "multi-user.target": [
           "stuff.service",
           "sock.socket"
       ]
